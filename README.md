@@ -1,28 +1,57 @@
-# Procedural-Cities
+# Procedural Cities — Three.js / GitHub Pages
 
-This project aims to provide a framework and a solid implementation of different techniques for generating complete seamless procedural cities with interiors for all buildings.
+A procedural city generator running entirely in the browser using Three.js.
 
-Small demo: https://www.youtube.com/watch?v=n1eZOV8r_g4
+**[Live Demo](https://lanmower.github.io/Procedural-Cities/)**
 
-This project was done as a master thesis at LTH, link to thesis is available here: http://lup.lub.lu.se/luur/download?func=downloadFile&recordOId=8929185&fileOId=8929189
+## Algorithms
 
-The source code is available to everyone under the MIT licence and you're very welcome to clone or fork the reposity, but keep in mind that it is mostly a proof-of-concept and the code is hardly optimized or refined.
+The city generation pipeline is a faithful JavaScript port of the original Unreal Engine C++ implementation:
 
-Most parameters are accessible from the "Spawner" blueprint-class, one is spawned in the default map, so edit the values inside of that. Some parameters can be found in ProcMeshActorBP, PlotBuilderBP and HouseBuilderBP. The most interesting parameters to change might be length, maximum turn rate for roads and heatmap settings.
+### Road Network (roadGen.js)
+Priority-queue driven road expansion guided by a simplex noise heatmap (ported from `Spawner.cpp`).
 
-Starting the project generates the city, the defalt character can either walk (with collisions enabled) or fly (with collisions disabled), switch by pressing R. 
+- A min-heap processes road candidates ordered by noise value at their endpoint
+- Each accepted segment spawns forward continuation + left/right branches
+- Main roads can branch into new main roads or secondary roads (`mainBranchChance`)
+- Loose road ends extend up to `maxAttach` to connect to nearby roads
 
-Some pictures:
+### Plot Extraction (plotGen.js)
+City block polygon extraction from road segments (ported from `BaseLibrary::getSurroundingPolygons`).
 
-![Interior apartment](images/2.png?raw=true "Interior apartment")
-![Interior several apartments 1](images/6.png?raw=true "Interior several apartments 1")
-![Interior several apartments 2](images/8.png?raw=true "Interior several apartments 2")
-![Interior several apartments 3](images/9.png?raw=true "Interior several apartments 3")
-![City overview 1](images/city1.PNG?raw=true "City overview 1")
-![City overview 2](images/citySS3.PNG?raw=true "City overview 2")
-![City overview 3](images/prettypicture.PNG?raw=true "City overview 3")
-![City map 1](images/heatmap8_20_5.PNG?raw=true "City map 1")
-![City map 2](images/heatmap8_30_15.PNG?raw=true "City map 2")
-![City map 3](images/procedural_chaotic.PNG?raw=true "City map 3")
-![City map 4](images/procedural_grid.PNG?raw=true "City map 4")
-![Large city](images/largecity.PNG?raw=true "Large city")
+- Each road segment produces two parallel side-lines
+- Side-lines are split wherever they cross other roads
+- Intersecting side-lines link into parent/child chains that form block polygons
+
+### Building Generation (buildingGen.js)
+Recursive polygon subdivision and extrusion (ported from `PlotBuilder` + `HouseBuilder`).
+
+- Plot polygons are bisected along their longest edge until below max area
+- Each footprint is extruded via `THREE.ExtrudeGeometry` to a random floor count
+
+### Noise (noise.js)
+2D Simplex noise ported from `simplexnoise.cpp` (Sebastien Rombauts / Stefan Gustavson).
+
+## Running Locally
+
+```
+npx serve docs
+```
+
+Open `http://localhost:3000`.
+
+## GitHub Pages
+
+Point GitHub Pages to the `/docs` folder in repository settings.
+
+## Controls
+
+| Action | Control |
+|--------|---------|
+| Orbit  | Left-drag |
+| Zoom   | Scroll |
+| Pan    | Right-drag |
+
+## License
+
+MIT
