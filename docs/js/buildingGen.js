@@ -1,0 +1,94 @@
+// Building generation - ported from PlotBuilder + HouseBuilder algorithms
+// Subdivides plot polygons into building footprints and extrudes them
+
+import { polyArea, polyIsClockwise, polyCenter, shrinkPoly, dist, normalize, add, scale, sub, perp, segIntersect } from './utils.js';
+import { seededRandom } from './noise.js';
+
+const MIN_AREA = 50000;    // cm² min building footprint (~7m x 7m)
+const MAX_AREA_BASE = 500000;  // cm² per building (~22m x 22m)
+const MAX_AREA_RANGE = 1000000;
+const MAX_DEPTH = 8;
+
+export function generateBuildings(plot, cfg = {}) {
+  const { minFloors = 3, maxFloors = 20, seed = 0 } = cfg;
+  const cen = polyCenter(plot);
+  const rng = seededRandom(Math.abs(Math.floor(cen.x * 7 + cen.y * 13 + seed)) >>> 0);
+
+  if (polyArea(plot) < MIN_AREA) return [];
+
+  const maxArea = MAX_AREA_BASE + rng() * MAX_AREA_RANGE;
+  const footprints = subdivide(plot, maxArea, 0);
+  const buildings = [];
+
+  for (const fp of footprints) {
+    const fpArea = polyArea(fp);
+    if (fpArea < MIN_AREA) continue;
+    const fcen = polyCenter(fp);
+    const floors = Math.max(minFloors, Math.floor(
+      minFloors + (maxFloors - minFloors) * (-Math.log(rng() * 0.95 + 0.05) / 4)
+    ));
+    buildings.push({ footprint: fp, floors, center: fcen, area: fpArea });
+  }
+
+  return buildings;
+}
+
+function subdivide(pts, maxArea, depth) {
+  const area = polyArea(pts);
+  if (area <= maxArea || pts.length < 4 || depth >= MAX_DEPTH) {
+    return [pts];
+  }
+
+  const split = getSplitLine(pts);
+  if (!split) return [pts];
+
+  const [a, b] = splitPolygon(pts, split);
+  if (!a || !b) return [pts];
+
+  // Guard: if split didn't meaningfully reduce size, stop
+  if (polyArea(a) >= area * 0.9 || polyArea(b) >= area * 0.9) return [pts];
+
+  return [...subdivide(a, maxArea, depth+1), ...subdivide(b, maxArea, depth+1)];
+}
+
+function getSplitLine(pts) {
+  let maxLen = 0, best = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    const d = dist(pts[i], pts[j]);
+    if (d > maxLen) { maxLen = d; best = i; }
+  }
+  const i = best, j = (i + 1) % pts.length;
+  const tan = normalize({ x: pts[j].x - pts[i].x, y: pts[j].y - pts[i].y });
+  const n2 = perp(tan);
+  const mp = { x: (pts[i].x + pts[j].x) * 0.5, y: (pts[i].y + pts[j].y) * 0.5 };
+  return { p1: add(mp, scale(n2, -1e8)), p2: add(mp, scale(n2, 1e8)) };
+}
+
+function splitPolygon(pts, line) {
+  const hits = [];
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const ix = segIntersect(line.p1, line.p2, pts[i], pts[j]);
+    if (ix) hits.push({ pt: ix, edge: i });
+  }
+  if (hits.length < 2) return [null, null];
+
+  // Keep only first and last hit to avoid degenerate splits
+  const h0 = hits[0], h1 = hits[hits.length - 1];
+  if (h0.edge === h1.edge) return [null, null];
+
+  const polyA = [h0.pt];
+  for (let i = (h0.edge + 1) % n; i !== (h1.edge + 1) % n; i = (i + 1) % n)
+    polyA.push(pts[i]);
+  polyA.push(h1.pt);
+
+  const polyB = [h1.pt];
+  for (let i = (h1.edge + 1) % n; i !== (h0.edge + 1) % n; i = (i + 1) % n)
+    polyB.push(pts[i]);
+  polyB.push(h0.pt);
+
+  if (polyA.length < 3 || polyB.length < 3) return [null, null];
+  return [polyA, polyB];
+}
