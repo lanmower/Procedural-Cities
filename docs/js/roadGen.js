@@ -1,8 +1,8 @@
-// Road network generation - ported from Spawner.cpp
+// Road network generation - faithful port of Spawner.cpp
 // Algorithm: priority queue exploration guided by simplex noise heatmap
 
 import { SimplexNoise, seededRandom } from './noise.js';
-import { segIntersect, normalize, dist, mid, rot2, perp, add, scale, dot } from './utils.js';
+import { segIntersect, normalize, dist, mid, rot2, add, scale, dot, rot90, rot270, getNormal } from './utils.js';
 
 const DEG = Math.PI / 180;
 
@@ -15,6 +15,7 @@ export function generateRoads(cfg) {
     mainBranchChance = 0.3, mainAdvantage = 0.1,
     standardWidth = 200, maxAttach = 2000,
     mainRoadDetrimentRange = 1000000,
+    mainRoadDetrimentImpact = 0.01
   } = cfg;
 
   const rng = seededRandom(seed);
@@ -25,18 +26,21 @@ export function generateRoads(cfg) {
   const queue = new MinHeap(s => s.time);
   const allSegs = [];
 
+  // Find best initial direction
   let bestVal = -Infinity, bestAngle = 0;
-  for (let a = 0; a < 360; a += 5) {
+  for (let a = 0; a < 360; a += 1) {
     const dir = rot2({ x: primaryStep, y: 0 }, a * DEG);
     const v = noiseAt(dir.x, dir.y);
     if (v > bestVal) { bestVal = v; bestAngle = a * DEG; }
   }
 
+  // Create start road
   const startRoad = {
     p1: { x: 0, y: 0 },
     p2: add({ x: 0, y: 0 }, rot2({ x: primaryStep, y: 0 }, bestAngle)),
     type: 'main', width: 4, roadInFront: false,
-    tangent: { x: Math.cos(bestAngle), y: Math.sin(bestAngle) }
+    beginTangent: { x: Math.cos(bestAngle), y: Math.sin(bestAngle) },
+    endTangent: { x: Math.cos(bestAngle), y: Math.sin(bestAngle) }
   };
   computeVerts(startRoad, standardWidth);
 
@@ -47,6 +51,7 @@ export function generateRoads(cfg) {
   };
   queue.push(startNode);
 
+  // Main generation loop
   while (queue.size() > 0 && decided.length < length) {
     const cur = queue.pop();
     if (placementOk(decided, cur, standardWidth)) {
@@ -56,7 +61,7 @@ export function generateRoads(cfg) {
       addExtensions(queue, cur, allSegs, noiseAt, rng, {
         primaryStep, secondaryStep, maxMainLen, maxSecondaryLen,
         changeIntensity, secondaryChangeIntensity, mainBranchChance,
-        mainAdvantage, mainRoadDetrimentRange, standardWidth
+        mainAdvantage, mainRoadDetrimentRange, mainRoadDetrimentImpact, standardWidth
       });
     }
   }
@@ -68,7 +73,7 @@ export function generateRoads(cfg) {
 function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
   const { primaryStep, secondaryStep, maxMainLen, maxSecondaryLen,
           changeIntensity, secondaryChangeIntensity, mainBranchChance,
-          mainAdvantage, mainRoadDetrimentRange, standardWidth: sw } = cfg;
+          mainAdvantage, mainRoadDetrimentRange, mainRoadDetrimentImpact, standardWidth: sw } = cfg;
 
   const isMain = cur.seg.type === 'main';
   const mainOthers = isMain ? allSegs.filter(s => s.seg.type === 'main') : [];
@@ -76,7 +81,7 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
   const enq = (relDeg, step, type, w) =>
     enqueue(queue, cur, relDeg, step, type, w,
             isMain ? changeIntensity : secondaryChangeIntensity,
-            mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainAdvantage, sw, allSegs);
+            mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs);
 
   if (isMain) {
     if (cur.roadLen < maxMainLen) enq(0, primaryStep, 'main', 4);
@@ -92,7 +97,7 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
 }
 
 function enqueue(queue, prev, relDeg, step, type, width, maxChange,
-                 others, noiseAt, rng, detrRange, advantage, sw, allSegs) {
+                 others, noiseAt, rng, detrRange, detrImpact, sw, allSegs) {
   const baseAngle = prev.angle + relDeg * DEG;
 
   let p1 = prev.seg.p2;
@@ -109,17 +114,18 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
     let v = noiseAt(testP.x, testP.y);
     for (const o of others) {
       const d = dist(mid(o.seg.p1, o.seg.p2), testP);
-      if (d < detrRange) v -= Math.max(0, 0.01 * (detrRange - d) / detrRange);
+      if (d < detrRange) v -= Math.max(0, detrImpact * (detrRange - d) / detrRange);
     }
     if (v > bestVal) { bestVal = v; bestAngle = a; }
   }
 
   const p2 = add(p1, rot2({ x: step, y: 0 }, bestAngle));
-  const seg = { p1, p2, type, width, tangent: normalize(sub2(p2, p1)), roadInFront: false };
+  const tan = normalize(sub2(p2, p1));
+  const seg = { p1, p2, type, width, beginTangent: tan, endTangent: tan, roadInFront: false };
   computeVerts(seg, sw);
   const roadLen = (prev.seg.type === 'main' && type !== 'main') ? 1 : prev.roadLen + 1;
   const val = noiseAt(p2.x, p2.y);
-  const node = { seg, angle: bestAngle, time: -val + advantage + Math.abs(0.1 * prev.time), roadLen, prev };
+  const node = { seg, angle: bestAngle, time: -val + mainAdvantage + Math.abs(0.1 * prev.time), roadLen, prev };
   queue.push(node);
   allSegs.push(node);
 }
@@ -128,7 +134,7 @@ function sub2(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
 
 function computeVerts(seg, sw) {
   const tan = normalize(sub2(seg.p2, seg.p1));
-  const n = { x: -tan.y, y: tan.x };
+  const n = rot90(tan);
   const hw = sw * seg.width * 0.5;
   seg.v1 = add(seg.p1, scale(n, hw));
   seg.v2 = add(seg.p1, scale(n, -hw));
@@ -152,11 +158,11 @@ function collide(s1, s2, ip, sw) {
   s1.p2 = ip;
   const nat = normalize(sub2(s1.p2, s1.p1));
   const s2tan = normalize(sub2(s2.p2, s2.p1));
-  const pot1 = { x: -s2tan.y, y: s2tan.x };
-  const pot2 = { x: s2tan.y, y: -s2tan.x };
+  const pot1 = rot90(s2tan);
+  const pot2 = rot270(s2tan);
   const newTan = dist(pot1, nat) < dist(pot2, nat) ? pot1 : pot2;
   if (dot(nat, newTan) > 0.3) {
-    s1.tangent = newTan;
+    s1.endTangent = newTan;
     computeVerts(s1, sw);
   } else {
     s1.v3 = s2.v4; s1.v4 = s2.v3;
