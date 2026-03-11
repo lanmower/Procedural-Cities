@@ -25,6 +25,7 @@ function getConfig() {
     standardWidth: 200,
     maxAttach: 2000,
     mainRoadDetrimentRange: 1000000,
+    mainRoadDetrimentImpact: 0.01,
   };
 }
 

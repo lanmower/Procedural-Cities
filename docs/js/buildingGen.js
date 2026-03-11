@@ -1,13 +1,14 @@
 // Building generation - ported from PlotBuilder + HouseBuilder algorithms
-// Subdivides plot polygons into building footprints and extrudes them
+// Subdivides plot polygons into building footprints and assigns heights
 
-import { polyArea, polyIsClockwise, polyCenter, shrinkPoly, dist, normalize, add, scale, sub, perp, segIntersect } from './utils.js';
-import { seededRandom } from './noise.js';
+import { polyArea, polyIsClockwise, polyCenter, shrinkPoly, dist, normalize, add, scale, sub, perp, segIntersect, getSplitProposal, splitPolygonAlongMax } from './utils.js';
+import { seededRandom, SimplexNoise } from './noise.js';
 
-const MIN_AREA = 50000;    // cm² min building footprint (~7m x 7m)
-const MAX_AREA_BASE = 500000;  // cm² per building (~22m x 22m)
+const MIN_AREA = 50000;    // Units² min building footprint
+const MAX_AREA_BASE = 500000;  // Units² per building
 const MAX_AREA_RANGE = 1000000;
 const MAX_DEPTH = 8;
+const FLOOR_HEIGHT = 400;  // Height per floor in units
 
 export function generateBuildings(plot, cfg = {}) {
   const { minFloors = 3, maxFloors = 20, seed = 0 } = cfg;
