@@ -81,7 +81,7 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
   const enq = (relDeg, step, type, w) =>
     enqueue(queue, cur, relDeg, step, type, w,
             isMain ? changeIntensity : secondaryChangeIntensity,
-            mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs);
+            mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
 
   if (isMain) {
     if (cur.roadLen < maxMainLen) enq(0, primaryStep, 'main', 4);
@@ -97,7 +97,7 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
 }
 
 function enqueue(queue, prev, relDeg, step, type, width, maxChange,
-                 others, noiseAt, rng, detrRange, detrImpact, sw, allSegs) {
+                 others, noiseAt, rng, detrRange, detrImpact, sw, allSegs, mainAdvantage) {
   const baseAngle = prev.angle + relDeg * DEG;
 
   let p1 = prev.seg.p2;
