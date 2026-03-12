@@ -15,7 +15,8 @@ export function generateRoads(cfg) {
     mainBranchChance = 0.3, mainAdvantage = 0.1,
     standardWidth = 200, maxAttach = 2000,
     mainRoadDetrimentRange = 1000000,
-    mainRoadDetrimentImpact = 0.01
+    mainRoadDetrimentImpact = 0.01,
+    closeMiddle = 4000
   } = cfg;
 
   const rng = seededRandom(seed);
@@ -54,7 +55,7 @@ export function generateRoads(cfg) {
   // Main generation loop
   while (queue.size() > 0 && decided.length < length) {
     const cur = queue.pop();
-    if (placementOk(decided, cur, standardWidth)) {
+    if (placementOk(decided, cur, standardWidth, closeMiddle)) {
       decided.push(cur.seg);
       if (cur.prev && dist(cur.prev.seg.p2, cur.seg.p1) < 1)
         cur.prev.seg.roadInFront = true;
@@ -143,11 +144,11 @@ function computeVerts(seg, sw) {
   seg.hw = hw;
 }
 
-function placementOk(decided, cur, sw) {
+function placementOk(decided, cur, sw, closeMiddle = 4000) {
   computeVerts(cur.seg, sw);
   for (const f of decided) {
     if (cur.prev && f === cur.prev.seg) continue;
-    if (dist(mid(f.p1, f.p2), mid(cur.seg.p1, cur.seg.p2)) < 4000) return false;
+    if (dist(mid(f.p1, f.p2), mid(cur.seg.p1, cur.seg.p2)) < closeMiddle) return false;
     const ix = segIntersect(cur.seg.p1, cur.seg.p2, f.p1, f.p2);
     if (ix) { cur.time = 100000; collide(cur.seg, f, ix, sw); }
   }

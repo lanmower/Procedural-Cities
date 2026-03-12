@@ -4,14 +4,13 @@
 import { dist, normalize, mid, rot90, add, scale, sub, polyIsClockwise, polyDecreaseEdges, polyClipEdges, getProperIntersection } from './utils.js';
 
 export function extractPlots(roads, cfg = {}) {
-  const { extraLen = 500, width = 50, middleOffset = 100 } = cfg;
+  const { extraLen = 500, width = 50, middleOffset = 100, minRoadLen = 3000 } = cfg;
   if (!roads.length) return [];
 
-  // Identical algorithm to getSurroundingPolygons from BaseLibrary.cpp
-  return getSurroundingPolygons(roads, roads, 200, extraLen, 0, width, middleOffset);
+  return getSurroundingPolygons(roads, roads, 200, extraLen, 0, width, middleOffset, minRoadLen);
 }
 
-function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoadLen, width, middleOffset) {
+function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoadLen, width, middleOffset, minRoadLen = 3000) {
   const lines = [];
 
   // Get coherent lines (side-lines) from each road segment
@@ -32,7 +31,7 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
       child: null,
       point: null
     };
-    decidePolygonFate(segments, blocking, left, lines, true, extraRoadLen, width, middleOffset, 0);
+    decidePolygonFate(segments, blocking, left, lines, true, extraRoadLen, width, middleOffset, 0, minRoadLen);
 
     // Right side line
     // C++: right->p1 = f.p1 - sideOffsetBegin - extraLength (extended backward)
@@ -45,7 +44,7 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
         child: null,
         point: null
       };
-      decidePolygonFate(segments, blocking, right, lines, true, extraRoadLen, width, middleOffset, 0);
+      decidePolygonFate(segments, blocking, right, lines, true, extraRoadLen, width, middleOffset, 0, minRoadLen);
     }
   }
 
@@ -161,9 +160,8 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
   return polygons;
 }
 
-function decidePolygonFate(segments, blocking, inLine, lines, allowSplit, extraRoadLen, width, middleOffset, depth) {
+function decidePolygonFate(segments, blocking, inLine, lines, allowSplit, extraRoadLen, width, middleOffset, depth, minRoadLen = 3000) {
   const len = dist(inLine.p1, inLine.p2);
-  const minRoadLen = 3000;
 
   if (len < minRoadLen || depth > 3) {
     return;
@@ -207,7 +205,7 @@ function decidePolygonFate(segments, blocking, inLine, lines, allowSplit, extraR
       newP.parent = null;
       newP.child = null;
       newP.point = null;
-      decidePolygonFate(segments, blocking, newP, lines, true, extraRoadLen, width, middleOffset, depth + 1);
+      decidePolygonFate(segments, blocking, newP, lines, true, extraRoadLen, width, middleOffset, depth + 1, minRoadLen);
     }
   }
 

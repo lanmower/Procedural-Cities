@@ -4,9 +4,9 @@
 import { polyArea, polyIsClockwise, polyCenter, shrinkPoly, dist, normalize, add, scale, sub, perp, segIntersect, getSplitProposal, splitPolygonAlongMax } from './utils.js';
 import { seededRandom, SimplexNoise } from './noise.js';
 
-const MIN_AREA = 50000;    // Units² min building footprint
-const MAX_AREA_BASE = 500000;  // Units² per building
-const MAX_AREA_RANGE = 1000000;
+const MIN_AREA = 5000;     // Units² min building footprint
+const MAX_AREA_BASE = 50000;   // Units² per building
+const MAX_AREA_RANGE = 100000;
 const MAX_DEPTH = 8;
 const FLOOR_HEIGHT = 400;  // Height per floor in units
 
