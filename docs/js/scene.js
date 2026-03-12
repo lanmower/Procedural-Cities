@@ -9,9 +9,9 @@ const MATS = {
   interior:    new THREE.MeshLambertMaterial({ color: 0xe8e4dc, side: THREE.DoubleSide }),
   floor:       new THREE.MeshLambertMaterial({ color: 0x9a9590 }),
   roof:        new THREE.MeshLambertMaterial({ color: 0x787470 }),
-  road:        new THREE.MeshLambertMaterial({ color: 0x333330, side: THREE.DoubleSide }),
+  road:        new THREE.MeshLambertMaterial({ color: 0x2a2a28, side: THREE.DoubleSide }),
   roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
-  plot:        new THREE.MeshLambertMaterial({ color: 0x5a5a55, side: THREE.DoubleSide }),
+  plot:        new THREE.MeshLambertMaterial({ color: 0xb8b0a0, side: THREE.DoubleSide }),
   window:      new THREE.MeshLambertMaterial({ color: 0x1a2a3a, side: THREE.DoubleSide }),
 };
 
@@ -51,7 +51,7 @@ export function createScene(container) {
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(20000, 20000),
-    new THREE.MeshLambertMaterial({ color: 0x5a6b50 })
+    new THREE.MeshLambertMaterial({ color: 0x6a7860 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -82,7 +82,7 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
     isFinite(r.v3.x) && isFinite(r.v3.y) && isFinite(r.v4.x) && isFinite(r.v4.y);
   const validRoads = roads.filter(validRoad);
   const roadQuads = validRoads.map(r => [r.v1, r.v2, r.v4, r.v3]);
-  const roadGeo = mergeQuads(roadQuads, SCALE, 1.0);
+  const roadGeo = mergeQuads(roadQuads, SCALE, 0.5);
   if (roadGeo) {
     const m = new THREE.Mesh(roadGeo, MATS.road);
     m.receiveShadow = true;
@@ -107,11 +107,11 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
       pos += 400;
     }
   }
-  const lineGeo = mergeQuads(lineQuads, SCALE, 1.1);
+  const lineGeo = mergeQuads(lineQuads, SCALE, 0.6);
   if (lineGeo) group.add(new THREE.Mesh(lineGeo, MATS.roadLine));
 
   // Plot fills
-  const plotGeo = mergePolygons(plots, SCALE, 0.5);
+  const plotGeo = mergePolygons(plots, SCALE, 0.1);
   if (plotGeo) {
     const m = new THREE.Mesh(plotGeo, MATS.plot);
     m.receiveShadow = true;
