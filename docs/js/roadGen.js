@@ -84,16 +84,17 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
             isMain ? changeIntensity : secondaryChangeIntensity,
             mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
 
+  const sndRoadSize = Math.max(1.9, cur.seg.width - 1.5);
   if (isMain) {
     if (cur.roadLen < maxMainLen) enq(0, primaryStep, 'main', 4);
     const lType = rng() < mainBranchChance ? 'main' : 'secondary';
     const rType = rng() < mainBranchChance ? 'main' : 'secondary';
-    enq(90,  lType === 'main' ? primaryStep : secondaryStep, lType, lType === 'main' ? 4 : 2);
-    enq(-90, rType === 'main' ? primaryStep : secondaryStep, rType, rType === 'main' ? 4 : 2);
+    enq(90,  lType === 'main' ? primaryStep : secondaryStep, lType, lType === 'main' ? 4 : sndRoadSize);
+    enq(-90, rType === 'main' ? primaryStep : secondaryStep, rType, rType === 'main' ? 4 : sndRoadSize);
   } else if (cur.roadLen < maxSecondaryLen) {
-    enq(0,   secondaryStep, 'secondary', 2);
-    enq(90,  secondaryStep, 'secondary', 2);
-    enq(-90, secondaryStep, 'secondary', 2);
+    enq(0,   secondaryStep, 'secondary', sndRoadSize);
+    enq(90,  secondaryStep, 'secondary', sndRoadSize);
+    enq(-90, secondaryStep, 'secondary', sndRoadSize);
   }
 }
 
@@ -126,7 +127,7 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
   computeVerts(seg, sw);
   const roadLen = (prev.seg.type === 'main' && type !== 'main') ? 1 : prev.roadLen + 1;
   const val = noiseAt(p2.x, p2.y);
-  const node = { seg, angle: bestAngle, time: -val + mainAdvantage + Math.abs(0.1 * prev.time), roadLen, prev };
+  const node = { seg, angle: bestAngle, time: -val + (type === 'main' ? mainAdvantage : 0) + Math.abs(0.1 * prev.time), roadLen, prev };
   queue.push(node);
   allSegs.push(node);
 }
