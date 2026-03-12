@@ -50,7 +50,7 @@ export function createScene(container) {
   scene.add(fill);
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(20000, 20000),
+    new THREE.PlaneGeometry(2000, 2000),
     new THREE.MeshLambertMaterial({ color: 0x6a7860 })
   );
   ground.rotation.x = -Math.PI / 2;
@@ -82,7 +82,7 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
     isFinite(r.v3.x) && isFinite(r.v3.y) && isFinite(r.v4.x) && isFinite(r.v4.y);
   const validRoads = roads.filter(validRoad);
   const roadQuads = validRoads.map(r => [r.v1, r.v2, r.v4, r.v3]);
-  const roadGeo = mergeQuads(roadQuads, SCALE, 0.5);
+  const roadGeo = mergeQuads(roadQuads, SCALE, 0.2);
   if (roadGeo) {
     const m = new THREE.Mesh(roadGeo, MATS.road);
     m.receiveShadow = true;
@@ -107,7 +107,7 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
       pos += 400;
     }
   }
-  const lineGeo = mergeQuads(lineQuads, SCALE, 0.6);
+  const lineGeo = mergeQuads(lineQuads, SCALE, 0.4);
   if (lineGeo) group.add(new THREE.Mesh(lineGeo, MATS.roadLine));
 
   // Plot fills
