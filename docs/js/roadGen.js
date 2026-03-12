@@ -86,7 +86,7 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
   const enqSide = (relDeg, step, type, w) =>
     enqueue(queue, cur, relDeg, step, type, w,
             secondaryChangeIntensity,
-            mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
+            type === 'main' ? mainOthers : [], noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
 
   const sideWidth = Math.max(1.9, cur.seg.width - 1.5);
 
@@ -135,7 +135,12 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
   const seg = { p1, p2, type, width, beginTangent, endTangent: endTan, roadInFront: false };
   computeVerts(seg, sw);
   const roadLen = (prev.seg.type === 'main' && type !== 'main') ? 1 : prev.roadLen + 1;
-  const val = noiseAt(p2.x, p2.y);
+  const valOthers = type === 'main' ? others : [];
+  let val = noiseAt(p2.x, p2.y);
+  for (const o of valOthers) {
+    const d = dist(mid(o.seg.p1, o.seg.p2), p2);
+    if (d < detrRange) val -= Math.max(0, detrImpact * (detrRange - d) / detrRange);
+  }
   const advantage = type === 'main' ? mainAdvantage : 0;
   const node = { seg, angle: bestAngle, time: -val + advantage + Math.abs(0.1 * prev.time), roadLen, prev };
   queue.push(node);
