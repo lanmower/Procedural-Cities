@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Procedural Cities</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; overflow: hidden; font-family: monospace; }
+    canvas { display: block; }
+    #ui {
+      position: absolute; top: 12px; left: 12px; color: #ccc;
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    #ui label { font-size: 12px; }
+    #ui input[type=number] { width: 70px; padding: 2px 4px; background: #222; color: #ccc; border: 1px solid #444; }
+    #ui button {
+      padding: 5px 12px; background: #333; color: #ccc;
+      border: 1px solid #555; cursor: pointer; font-size: 12px;
+    }
+    #ui button:hover { background: #444; }
+    #overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); display: flex; align-items: center;
+      justify-content: center; color: #ccc; font-size: 20px;
+      pointer-events: none; transition: opacity 0.5s;
+    }
+    #info {
+      position: absolute; bottom: 12px; left: 12px; color: #555; font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <button id="btnGen">Regenerate</button>
+    <label>Seed <input id="seed" type="number" value="42"></label>
+    <label>Road segments <input id="segments" type="number" value="400" min="50" max="1000"></label>
+    <label>Main branch chance <input id="branch" type="number" value="0.3" min="0" max="1" step="0.05"></label>
+    <label>Buildings <input id="bldgs" type="checkbox" checked></label>
+  </div>
+  <div id="overlay">Generating city…</div>
+  <div id="info">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
