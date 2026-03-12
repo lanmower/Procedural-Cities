@@ -4,7 +4,6 @@ import { extractPlots } from './plotGen.js';
 import { generateHousePolygons } from './buildingGen.js';
 import { getHouseInfo } from './houseBuilder.js';
 import { createScene, buildCityMesh } from './scene.js';
-import { polyArea } from './utils.js';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
@@ -16,11 +15,11 @@ function getConfig() {
     length:    parseInt(document.getElementById('segments').value) || 400,
     mainBranchChance: parseFloat(document.getElementById('branch').value) || 0.3,
     showBuildings: document.getElementById('bldgs').checked,
-    noiseScale: 0.00003,
-    primaryStep: 5000,
-    secondaryStep: 3000,
-    changeIntensity: 30,
-    secondaryChangeIntensity: 45,
+    noiseScale: 0.00005,
+    primaryStep: 3000,
+    secondaryStep: 2000,
+    changeIntensity: 5,
+    secondaryChangeIntensity: 8,
     maxMainLen: 15,
     maxSecondaryLen: 8,
     mainAdvantage: 0.1,
@@ -28,7 +27,7 @@ function getConfig() {
     maxAttach: 2000,
     mainRoadDetrimentRange: 1000000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 4000,
+    closeMiddle: 800,
   };
 }
 
@@ -79,7 +78,7 @@ async function generate() {
     const size = bbox.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.z);
     const groundCenter = new THREE.Vector3(center.x, 0, center.z);
-    ctx.camera.position.set(center.x - maxDim * 0.3, maxDim * 2.0, center.z + maxDim * 0.5);
+    ctx.camera.position.set(center.x, maxDim * 1.1, center.z + maxDim * 0.4);
     ctx.controls.target.copy(groundCenter);
     ctx.controls.update();
 
