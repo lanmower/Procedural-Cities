@@ -28,7 +28,7 @@ function getConfig() {
     maxAttach: 2000,
     mainRoadDetrimentRange: 1000000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 4000,
+    closeMiddle: 2000,
   };
 }
 
@@ -77,10 +77,9 @@ async function generate() {
     const bbox = new THREE.Box3().setFromObject(currentMesh);
     const center = bbox.getCenter(new THREE.Vector3());
     const size = bbox.getSize(new THREE.Vector3());
-    console.log('bbox center:', center.x, center.y, center.z, 'size:', size.x, size.y, size.z);
     const maxDim = Math.max(size.x, size.z);
     const groundCenter = new THREE.Vector3(center.x, 0, center.z);
-    ctx.camera.position.set(center.x - maxDim * 0.3, maxDim * 0.4, center.z + maxDim * 0.7);
+    ctx.camera.position.set(center.x - maxDim * 0.7, maxDim * 0.6, center.z + maxDim * 0.9);
     ctx.controls.target.copy(groundCenter);
     ctx.controls.update();
 

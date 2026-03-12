@@ -14,7 +14,7 @@ function getHeight(center, rng, noiseScale, minFloors, maxFloors, noise) {
 
 function subdivide(pts, maxArea, depth) {
   const area = polyArea(pts);
-  if (area <= maxArea || pts.length < 4 || depth >= 8) return [pts];
+  if (area <= maxArea || pts.length < 4 || depth >= 6) return [pts];
   const result = splitPolygonAlongMax(pts);
   if (!result) return [pts];
   const [a, b] = result;
@@ -36,9 +36,9 @@ export function generateHousePolygons(plot, cfg = {}) {
   if (rng() < 0.05) return [];
 
   const area = polyArea(pts);
-  const targetPieces = rng() * (20 - 10) + 10;
+  const targetPieces = rng() * (8 - 3) + 3;
   const currMaxArea = area / targetPieces;
-  const minArea = currMaxArea * 0.15;
+  const minArea = currMaxArea * 0.3;
 
   const pieces = subdivide(pts, currMaxArea, 0);
   const result = [];

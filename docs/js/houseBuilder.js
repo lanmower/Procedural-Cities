@@ -57,10 +57,11 @@ function getShaftHolePolygon(f, rng) {
   const offY = (rng() - 0.5) * holeSizeY;
   const origin = add(center, add(scale(edge, offX), scale(edgePerp, offY)));
   let rect = makeRect(origin);
+  const fpXY = pts.map(xy);
 
-  if (polyPolyIntersects(rect, pts.map(xy))) {
+  if (polyPolyIntersects(rect, fpXY) || rect.some(p => !pointInPoly(p, fpXY))) {
     rect = makeRect(xy(center));
-    if (polyPolyIntersects(rect, pts.map(xy))) return null;
+    if (polyPolyIntersects(rect, fpXY) || rect.some(p => !pointInPoly(p, fpXY))) return null;
   }
   return rect;
 }
@@ -245,20 +246,20 @@ export function getHouseInfo(f) {
   const meshes = [];
   const remainingPlots = [];
 
-  // 1. shaft hole
+  // 1. shaft hole (may fail for small footprints)
   let hole = getShaftHolePolygon(f, rng);
   if (!hole) {
-    remainingPlots.push({ pol: { points: f.points.map(xy) }, type: 'undecided' });
+    const numFloors = Math.max(1, f.height || 3);
+    for (let i = 0; i < numFloors; i++) pols.push(...buildExteriorShell(f, i));
+    const topZ = numFloors * floorHeight;
+    const fTop = { points: f.points.map(p => withZ(xy(p), topZ)) };
+    pols.push(...addRoofDetail(fTop, rng));
     return { pols, meshes, remainingPlots };
   }
 
-  // 2. makeInteresting
-  const cutouts = makeInteresting(f, hole, rng, 4);
-  remainingPlots.push(...cutouts);
-
   const numFloors = Math.max(1, f.height || 3);
 
-  // 3. ground floor
+  // 2. ground floor
   pols.push(...buildExteriorShell(f, 0));
   const groundRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, 0);
   for (const room of groundRooms) {
@@ -266,10 +267,8 @@ export function getHouseInfo(f) {
     pols.push(...rp); meshes.push(...rm);
   }
 
-  // 4. upper floors
+  // 3. upper floors
   for (let i = 1; i < numFloors; i++) {
-    const shrinkPlots = potentiallyShrink(f, hole, rng);
-    remainingPlots.push(...shrinkPlots);
     pols.push(addFloorWithHole(f, hole, floorHeight * i));
     pols.push(...buildExteriorShell(f, i));
     const rooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, i);
@@ -279,8 +278,10 @@ export function getHouseInfo(f) {
     }
   }
 
-  // 5. roof
-  const roofPols = addRoofDetail(f, rng);
+  // 4. roof at correct height
+  const topZ = numFloors * floorHeight;
+  const fTop = { points: f.points.map(p => withZ(xy(p), topZ)) };
+  const roofPols = addRoofDetail(fTop, rng);
   pols.push(...roofPols);
 
   return { pols, meshes, remainingPlots };

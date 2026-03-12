@@ -9,9 +9,9 @@ const MATS = {
   interior:    new THREE.MeshLambertMaterial({ color: 0xe8e4dc, side: THREE.DoubleSide }),
   floor:       new THREE.MeshLambertMaterial({ color: 0x9a9590 }),
   roof:        new THREE.MeshLambertMaterial({ color: 0x787470 }),
-  road:        new THREE.MeshLambertMaterial({ color: 0x222220 }),
-  roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060 }),
-  plot:        new THREE.MeshLambertMaterial({ color: 0x5a5a55 }),
+  road:        new THREE.MeshLambertMaterial({ color: 0x333330, side: THREE.DoubleSide }),
+  roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
+  plot:        new THREE.MeshLambertMaterial({ color: 0x5a5a55, side: THREE.DoubleSide }),
 };
 
 export function createScene(container) {
@@ -24,9 +24,9 @@ export function createScene(container) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xb8cce0);
-  scene.fog = new THREE.FogExp2(0xb8cce0, 0.0003);
+  scene.fog = new THREE.FogExp2(0xb8cce0, 0.00015);
 
-  const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 10000);
+  const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 50000);
   camera.position.set(0, 300, 300);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -35,21 +35,22 @@ export function createScene(container) {
 
   scene.add(new THREE.AmbientLight(0xffffff, 1.2));
   const sun = new THREE.DirectionalLight(0xfff8e8, 2.5);
-  sun.position.set(300, 600, 200);
+  sun.position.set(1000, 2000, 800);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 3000;
-  sun.shadow.camera.left = sun.shadow.camera.bottom = -800;
-  sun.shadow.camera.right = sun.shadow.camera.top = 800;
+  sun.shadow.camera.far = 10000;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -2000;
+  sun.shadow.camera.right = sun.shadow.camera.top = 2000;
   scene.add(sun);
+  scene.add(sun.target);
   const fill = new THREE.DirectionalLight(0x8090c0, 0.6);
   fill.position.set(-200, 100, -300);
   scene.add(fill);
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(6000, 6000),
-    new THREE.MeshLambertMaterial({ color: 0x4a5a40 })
+    new THREE.PlaneGeometry(20000, 20000),
+    new THREE.MeshLambertMaterial({ color: 0x5a6b50 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -75,8 +76,12 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
   const group = new THREE.Group();
 
   // Roads
-  const roadQuads = roads.map(r => [r.v1, r.v2, r.v4, r.v3]);
-  const roadGeo = mergeQuads(roadQuads, SCALE, 0.2);
+  const validRoad = r => r.v1 && r.v2 && r.v3 && r.v4 &&
+    isFinite(r.v1.x) && isFinite(r.v1.y) && isFinite(r.v2.x) && isFinite(r.v2.y) &&
+    isFinite(r.v3.x) && isFinite(r.v3.y) && isFinite(r.v4.x) && isFinite(r.v4.y);
+  const validRoads = roads.filter(validRoad);
+  const roadQuads = validRoads.map(r => [r.v1, r.v2, r.v4, r.v3]);
+  const roadGeo = mergeQuads(roadQuads, SCALE, 1.0);
   if (roadGeo) {
     const m = new THREE.Mesh(roadGeo, MATS.road);
     m.receiveShadow = true;
@@ -101,11 +106,11 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
       pos += 400;
     }
   }
-  const lineGeo = mergeQuads(lineQuads, SCALE, 0.12);
+  const lineGeo = mergeQuads(lineQuads, SCALE, 1.1);
   if (lineGeo) group.add(new THREE.Mesh(lineGeo, MATS.roadLine));
 
   // Plot fills
-  const plotGeo = mergePolygons(plots, SCALE, 0.05);
+  const plotGeo = mergePolygons(plots, SCALE, 0.5);
   if (plotGeo) {
     const m = new THREE.Mesh(plotGeo, MATS.plot);
     m.receiveShadow = true;
@@ -168,6 +173,7 @@ function mergePolygons3D(polys, sc) {
   let vi = 0;
   for (const pts of polys) {
     if (!pts || pts.length < 3) continue;
+    if (pts.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) continue;
     // For quads (walls): render as two triangles
     if (pts.length === 4) {
       for (const p of pts) pos.push(p.x * sc, (p.z || 0) * sc, p.y * sc);
