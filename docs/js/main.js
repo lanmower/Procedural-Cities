@@ -43,7 +43,7 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const plots = extractPlots(roads, { extraLen: 500, width: 100, middleOffset: 50, maxConnect: 5000 });
+    const plots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, maxConnect: 5000 });
 
     let buildings = [];
     if (cfg.showBuildings) {

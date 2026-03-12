@@ -83,16 +83,23 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
             isMain ? changeIntensity : secondaryChangeIntensity,
             mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
 
+  const enqSide = (relDeg, step, type, w) =>
+    enqueue(queue, cur, relDeg, step, type, w,
+            secondaryChangeIntensity,
+            mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
+
+  const sideWidth = Math.max(1.9, cur.seg.width - 1.5);
+
   if (isMain) {
     if (cur.roadLen < maxMainLen) enq(0, primaryStep, 'main', 4);
     const lType = rng() < mainBranchChance ? 'main' : 'secondary';
     const rType = rng() < mainBranchChance ? 'main' : 'secondary';
-    enq(90,  lType === 'main' ? primaryStep : secondaryStep, lType, lType === 'main' ? 4 : 2);
-    enq(-90, rType === 'main' ? primaryStep : secondaryStep, rType, rType === 'main' ? 4 : 2);
+    enqSide(90,  lType === 'main' ? primaryStep : secondaryStep, lType, lType === 'main' ? 4 : sideWidth);
+    enqSide(-90, rType === 'main' ? primaryStep : secondaryStep, rType, rType === 'main' ? 4 : sideWidth);
   } else if (cur.roadLen < maxSecondaryLen) {
-    enq(0,   secondaryStep, 'secondary', 2);
-    enq(90,  secondaryStep, 'secondary', 2);
-    enq(-90, secondaryStep, 'secondary', 2);
+    enq(0,   secondaryStep, 'secondary', cur.seg.width);
+    enqSide(90,  secondaryStep, 'secondary', sideWidth);
+    enqSide(-90, secondaryStep, 'secondary', sideWidth);
   }
 }
 
@@ -116,16 +123,21 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
       const d = dist(mid(o.seg.p1, o.seg.p2), testP);
       if (d < detrRange) v -= Math.max(0, detrImpact * (detrRange - d) / detrRange);
     }
-    if (v > bestVal) { bestVal = v; bestAngle = a; }
+    if (v > bestVal) { bestVal = noiseAt(testP.x, testP.y); bestAngle = a; }
   }
 
   const p2 = add(p1, rot2({ x: step, y: 0 }, bestAngle));
-  const tan = normalize(sub2(p2, p1));
-  const seg = { p1, p2, type, width, beginTangent: tan, endTangent: tan, roadInFront: false };
+  const parentDir = normalize(sub2(prev.seg.p2, prev.seg.p1));
+  const beginTangent = relDeg === 0
+    ? parentDir
+    : normalize(rot2(parentDir, relDeg * DEG));
+  const endTan = normalize(sub2(p2, p1));
+  const seg = { p1, p2, type, width, beginTangent, endTangent: endTan, roadInFront: false };
   computeVerts(seg, sw);
   const roadLen = (prev.seg.type === 'main' && type !== 'main') ? 1 : prev.roadLen + 1;
   const val = noiseAt(p2.x, p2.y);
-  const node = { seg, angle: bestAngle, time: -val + mainAdvantage + Math.abs(0.1 * prev.time), roadLen, prev };
+  const advantage = type === 'main' ? mainAdvantage : 0;
+  const node = { seg, angle: bestAngle, time: -val + advantage + Math.abs(0.1 * prev.time), roadLen, prev };
   queue.push(node);
   allSegs.push(node);
 }
@@ -133,13 +145,15 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
 function sub2(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
 
 function computeVerts(seg, sw) {
-  const tan = normalize(sub2(seg.p2, seg.p1));
-  const n = rot90(tan);
+  const startTan = normalize(seg.beginTangent);
+  const endTan = normalize(sub2(seg.p2, seg.p1));
+  const startN = rot90(startTan);
+  const endN = rot90(endTan);
   const hw = sw * seg.width * 0.5;
-  seg.v1 = add(seg.p1, scale(n, hw));
-  seg.v2 = add(seg.p1, scale(n, -hw));
-  seg.v3 = add(seg.p2, scale(n, hw));
-  seg.v4 = add(seg.p2, scale(n, -hw));
+  seg.v1 = add(seg.p1, scale(startN, hw));
+  seg.v2 = add(seg.p1, scale(startN, -hw));
+  seg.v3 = add(seg.p2, scale(endN, hw));
+  seg.v4 = add(seg.p2, scale(endN, -hw));
   seg.hw = hw;
 }
 
@@ -165,6 +179,7 @@ function collide(s1, s2, ip, sw) {
     s1.endTangent = newTan;
     computeVerts(s1, sw);
   } else {
+    s1.endTangent = scale(s2.endTangent, -1);
     s1.v3 = s2.v4; s1.v4 = s2.v3;
     s1.p2 = mid(s2.v4, s2.v3);
     s2.roadInFront = true;
