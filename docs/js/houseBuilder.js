@@ -225,7 +225,30 @@ function addRoofDetail(f, rng) {
   return pols;
 }
 
-function buildExteriorShell(f, floorIdx) {
+function windowQuadsOnWall(a, b, floorZ, rng) {
+  const pols = [];
+  const wallLen = dist(xy(a), xy(b));
+  const winW = 120, winH = 200, winBottomOffset = 100;
+  const spacing = 280;
+  const count = Math.max(1, Math.floor((wallLen - 100) / spacing));
+  const totalW = count * spacing;
+  const startOffset = (wallLen - totalW) / 2 + spacing / 2;
+  const dir = normalize(sub(xy(b), xy(a)));
+  for (let i = 0; i < count; i++) {
+    const cx = startOffset + i * spacing;
+    const base = add(xy(a), scale(dir, cx));
+    const left = sub(base, scale(dir, winW / 2));
+    const right = add(base, scale(dir, winW / 2));
+    const z0 = floorZ + winBottomOffset;
+    const z1 = z0 + winH;
+    pols.push({ points: [
+      withZ(left, z0), withZ(right, z0), withZ(right, z1), withZ(left, z1)
+    ], type: 'window' });
+  }
+  return pols;
+}
+
+function buildExteriorShell(f, floorIdx, rng) {
   const pols = [];
   const pts = f.points;
   const z = floorIdx * floorHeight;
@@ -233,6 +256,7 @@ function buildExteriorShell(f, floorIdx) {
     const a = withZ(xy(pts[i]), z);
     const b = withZ(xy(pts[(i + 1) % pts.length]), z);
     pols.push({ points: wallQuad(a, b, floorHeight), type: 'exterior' });
+    pols.push(...windowQuadsOnWall(a, b, z, rng));
   }
   return pols;
 }
@@ -250,7 +274,7 @@ export function getHouseInfo(f) {
   let hole = getShaftHolePolygon(f, rng);
   if (!hole) {
     const numFloors = Math.max(1, f.height || 3);
-    for (let i = 0; i < numFloors; i++) pols.push(...buildExteriorShell(f, i));
+    for (let i = 0; i < numFloors; i++) pols.push(...buildExteriorShell(f, i, rng));
     const topZ = numFloors * floorHeight;
     const fTop = { points: f.points.map(p => withZ(xy(p), topZ)) };
     pols.push(...addRoofDetail(fTop, rng));
@@ -260,7 +284,7 @@ export function getHouseInfo(f) {
   const numFloors = Math.max(1, f.height || 3);
 
   // 2. ground floor
-  pols.push(...buildExteriorShell(f, 0));
+  pols.push(...buildExteriorShell(f, 0, rng));
   const groundRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, 0);
   for (const room of groundRooms) {
     const { pols: rp, meshes: rm } = buildApartment(room, 0, rng);
@@ -270,7 +294,7 @@ export function getHouseInfo(f) {
   // 3. upper floors
   for (let i = 1; i < numFloors; i++) {
     pols.push(addFloorWithHole(f, hole, floorHeight * i));
-    pols.push(...buildExteriorShell(f, i));
+    pols.push(...buildExteriorShell(f, i, rng));
     const rooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, i);
     for (const room of rooms) {
       const { pols: rp, meshes: rm } = buildApartment(room, i, rng);
