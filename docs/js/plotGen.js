@@ -4,7 +4,7 @@
 import { dist, normalize, mid, rot90, add, scale, sub, polyIsClockwise, polyDecreaseEdges, polyClipEdges, getProperIntersection } from './utils.js';
 
 export function extractPlots(roads, cfg = {}) {
-  const { extraLen = 500, width = 50, middleOffset = 100, minRoadLen = 100, extraRoadLen = 100 } = cfg;
+  const { extraLen = 2000, width = 50, middleOffset = 100, minRoadLen = 500, extraRoadLen = 100 } = cfg;
   if (!roads.length) return [];
 
   return getSurroundingPolygons(roads, roads, 200, extraLen, extraRoadLen, width, middleOffset, minRoadLen);
