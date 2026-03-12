@@ -47,7 +47,7 @@ export function generateRoads(cfg) {
   const startNode = {
     seg: startRoad, angle: bestAngle,
     time: -10000, roadLen: 1,
-    prev: { seg: { p2: { x: 0, y: 0 } } }
+    prev: { seg: { p1: { x: 0, y: 0 }, p2: { x: 0, y: 0 } } }
   };
   queue.push(startNode);
 
@@ -83,23 +83,16 @@ function addExtensions(queue, cur, allSegs, noiseAt, rng, cfg) {
             isMain ? changeIntensity : secondaryChangeIntensity,
             mainOthers, noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
 
-  const enqSide = (relDeg, step, type, w) =>
-    enqueue(queue, cur, relDeg, step, type, w,
-            secondaryChangeIntensity,
-            type === 'main' ? mainOthers : [], noiseAt, rng, mainRoadDetrimentRange, mainRoadDetrimentImpact, sw, allSegs, mainAdvantage);
-
-  const sideWidth = Math.max(1.9, cur.seg.width - 1.5);
-
   if (isMain) {
     if (cur.roadLen < maxMainLen) enq(0, primaryStep, 'main', 4);
     const lType = rng() < mainBranchChance ? 'main' : 'secondary';
     const rType = rng() < mainBranchChance ? 'main' : 'secondary';
-    enqSide(90,  lType === 'main' ? primaryStep : secondaryStep, lType, lType === 'main' ? 4 : sideWidth);
-    enqSide(-90, rType === 'main' ? primaryStep : secondaryStep, rType, rType === 'main' ? 4 : sideWidth);
+    enq(90,  lType === 'main' ? primaryStep : secondaryStep, lType, lType === 'main' ? 4 : 2);
+    enq(-90, rType === 'main' ? primaryStep : secondaryStep, rType, rType === 'main' ? 4 : 2);
   } else if (cur.roadLen < maxSecondaryLen) {
-    enq(0,   secondaryStep, 'secondary', cur.seg.width);
-    enqSide(90,  secondaryStep, 'secondary', sideWidth);
-    enqSide(-90, secondaryStep, 'secondary', sideWidth);
+    enq(0,   secondaryStep, 'secondary', 2);
+    enq(90,  secondaryStep, 'secondary', 2);
+    enq(-90, secondaryStep, 'secondary', 2);
   }
 }
 
@@ -123,26 +116,16 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
       const d = dist(mid(o.seg.p1, o.seg.p2), testP);
       if (d < detrRange) v -= Math.max(0, detrImpact * (detrRange - d) / detrRange);
     }
-    if (v > bestVal) { bestVal = noiseAt(testP.x, testP.y); bestAngle = a; }
+    if (v > bestVal) { bestVal = v; bestAngle = a; }
   }
 
   const p2 = add(p1, rot2({ x: step, y: 0 }, bestAngle));
-  const parentDir = normalize(sub2(prev.seg.p2, prev.seg.p1));
-  const beginTangent = relDeg === 0
-    ? parentDir
-    : normalize(rot2(parentDir, relDeg * DEG));
-  const endTan = normalize(sub2(p2, p1));
-  const seg = { p1, p2, type, width, beginTangent, endTangent: endTan, roadInFront: false };
+  const tan = normalize(sub2(p2, p1));
+  const seg = { p1, p2, type, width, beginTangent: tan, endTangent: tan, roadInFront: false };
   computeVerts(seg, sw);
   const roadLen = (prev.seg.type === 'main' && type !== 'main') ? 1 : prev.roadLen + 1;
-  const valOthers = type === 'main' ? others : [];
-  let val = noiseAt(p2.x, p2.y);
-  for (const o of valOthers) {
-    const d = dist(mid(o.seg.p1, o.seg.p2), p2);
-    if (d < detrRange) val -= Math.max(0, detrImpact * (detrRange - d) / detrRange);
-  }
-  const advantage = type === 'main' ? mainAdvantage : 0;
-  const node = { seg, angle: bestAngle, time: -val + advantage + Math.abs(0.1 * prev.time), roadLen, prev };
+  const val = noiseAt(p2.x, p2.y);
+  const node = { seg, angle: bestAngle, time: -val + mainAdvantage + Math.abs(0.1 * prev.time), roadLen, prev };
   queue.push(node);
   allSegs.push(node);
 }
@@ -150,15 +133,13 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
 function sub2(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
 
 function computeVerts(seg, sw) {
-  const startTan = normalize(seg.beginTangent);
-  const endTan = normalize(sub2(seg.p2, seg.p1));
-  const startN = rot90(startTan);
-  const endN = rot90(endTan);
+  const tan = normalize(sub2(seg.p2, seg.p1));
+  const n = rot90(tan);
   const hw = sw * seg.width * 0.5;
-  seg.v1 = add(seg.p1, scale(startN, hw));
-  seg.v2 = add(seg.p1, scale(startN, -hw));
-  seg.v3 = add(seg.p2, scale(endN, hw));
-  seg.v4 = add(seg.p2, scale(endN, -hw));
+  seg.v1 = add(seg.p1, scale(n, hw));
+  seg.v2 = add(seg.p1, scale(n, -hw));
+  seg.v3 = add(seg.p2, scale(n, hw));
+  seg.v4 = add(seg.p2, scale(n, -hw));
   seg.hw = hw;
 }
 
@@ -166,7 +147,7 @@ function placementOk(decided, cur, sw) {
   computeVerts(cur.seg, sw);
   for (const f of decided) {
     if (cur.prev && f === cur.prev.seg) continue;
-    if (dist(mid(f.p1, f.p2), mid(cur.seg.p1, cur.seg.p2)) < sw * 2) return false;
+    if (dist(mid(f.p1, f.p2), mid(cur.seg.p1, cur.seg.p2)) < 4000) return false;
     const ix = segIntersect(cur.seg.p1, cur.seg.p2, f.p1, f.p2);
     if (ix) { cur.time = 100000; collide(cur.seg, f, ix, sw); }
   }
@@ -184,6 +165,7 @@ function collide(s1, s2, ip, sw) {
     s1.endTangent = newTan;
     computeVerts(s1, sw);
   } else {
+    // C++: s1->endTangent = -s2->endTangent (fix: was missing in original port)
     s1.endTangent = scale(s2.endTangent, -1);
     s1.v3 = s2.v4; s1.v4 = s2.v3;
     s1.p2 = mid(s2.v4, s2.v3);
