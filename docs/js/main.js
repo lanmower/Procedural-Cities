@@ -28,7 +28,7 @@ function getConfig() {
     maxAttach: 2000,
     mainRoadDetrimentRange: 1000000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 2000,
+    closeMiddle: 4000,
   };
 }
 
@@ -46,15 +46,8 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const allPlots = extractPlots(roads, { extraLen: 6000, width: 50, middleOffset: 500, extraRoadLen: 100, minRoadLen: 200 });
-    const closedBig = allPlots.filter(p => !p.open && polyArea(p) > 5000);
-    const cx = closedBig.reduce((s, p) => s + p.reduce((a, pt) => a + pt.x, 0) / p.length, 0) / (closedBig.length || 1);
-    const cy = closedBig.reduce((s, p) => s + p.reduce((a, pt) => a + pt.y, 0) / p.length, 0) / (closedBig.length || 1);
-    const plots = closedBig.filter(p => {
-      const px = p.reduce((a, pt) => a + pt.x, 0) / p.length;
-      const py = p.reduce((a, pt) => a + pt.y, 0) / p.length;
-      return Math.hypot(px - cx, py - cy) < 12000;
-    });
+    const allPlots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 500 });
+    const plots = allPlots.filter(p => !p.open);
 
     let materialPols = [];
     if (cfg.showBuildings) {

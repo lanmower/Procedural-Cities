@@ -1,12 +1,12 @@
-import { dist, normalize, rot90, add, scale, sub, polyIsClockwise, segIntersect, getProperIntersection } from './utils.js';
+import { dist, normalize, rot90, add, scale, sub, polyIsClockwise, polyClipEdges, segIntersect, getProperIntersection } from './utils.js';
 
 export function extractPlots(roads, cfg = {}) {
-  const { extraLen = 2000, width = 50, middleOffset = 100, minRoadLen = 500, extraRoadLen = 100 } = cfg;
+  const { extraLen = 500, width = 50, middleOffset = 100, extraRoadLen = 100, minRoadLen = 3000 } = cfg;
   if (!roads.length) return [];
   return getSurroundingPolygons(roads, roads, 200, extraLen, extraRoadLen, width, middleOffset, minRoadLen);
 }
 
-function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoadLen, width, middleOffset, minRoadLen) {
+function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoadLen, width, middleOffset, minRoadLen = 3000) {
   const lines = [];
 
   for (const f of segments) {
@@ -58,7 +58,7 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
     }
 
     if (curr.child && taken.has(curr.child)) {
-      const res = segIntersect(curr.p1, curr.p2, curr.child.p1, curr.child.p2);
+      const res = getProperIntersection(curr.p1, curr.p2, curr.child.p1, curr.child.p2);
       if (res) { poly.shift(); poly.push(res); }
       poly.open = false;
     } else {
@@ -68,7 +68,7 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
     polygons.push(poly);
   }
 
-  const maxConnect = 1500;
+  const maxConnect = 5000;
 
   for (let i = 0; i < polygons.length; i++) {
     const p = polygons[i];
@@ -101,13 +101,14 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
   for (let i = 0; i < polygons.length; i++) {
     const p = polygons[i];
     if (p.open && dist(p[0], p[p.length - 1]) < maxConnect) p.open = false;
+    polyClipEdges(p, -0.96);
     if (p.length < 3) { polygons.splice(i, 1); i--; }
   }
 
   return polygons;
 }
 
-function decidePolygonFate(blocking, inLine, lines, allowSplit, extraRoadLen, middleOffset, depth, minRoadLen) {
+function decidePolygonFate(blocking, inLine, lines, allowSplit, extraRoadLen, middleOffset, depth, minRoadLen = 3000) {
   if (dist(inLine.p1, inLine.p2) < minRoadLen || depth > 3) return;
 
   for (const f of blocking) {
@@ -141,7 +142,7 @@ function decidePolygonFate(blocking, inLine, lines, allowSplit, extraRoadLen, mi
 
   for (let i = 0; i < lines.length; i++) {
     const pol = lines[i];
-    const res = segIntersect(pol.p1, pol.p2, inLine.p1, inLine.p2);
+    const res = getProperIntersection(pol.p1, pol.p2, inLine.p1, inLine.p2);
     if (res && (res.x !== 0 || res.y !== 0)) {
       const d1 = Math.pow(dist(pol.p1, res), 2);
       const d2 = Math.pow(dist(inLine.p2, res), 2);
