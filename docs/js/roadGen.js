@@ -166,7 +166,7 @@ function placementOk(decided, cur, sw) {
   computeVerts(cur.seg, sw);
   for (const f of decided) {
     if (cur.prev && f === cur.prev.seg) continue;
-    if (dist(mid(f.p1, f.p2), mid(cur.seg.p1, cur.seg.p2)) < 4000) return false;
+    if (dist(mid(f.p1, f.p2), mid(cur.seg.p1, cur.seg.p2)) < sw * 2) return false;
     const ix = segIntersect(cur.seg.p1, cur.seg.p2, f.p1, f.p2);
     if (ix) { cur.time = 100000; collide(cur.seg, f, ix, sw); }
   }
