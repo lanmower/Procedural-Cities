@@ -47,7 +47,7 @@ async function generate() {
     overlay.textContent = 'Extracting plots…';
     await tick();
     const allPlots = extractPlots(roads, { extraLen: 2000, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 500 });
-    const plots = allPlots.filter(p => !p.open && polyArea(p) > 100000);
+    const plots = allPlots.filter(p => !p.open && polyArea(p) > 10000);
 
     let materialPols = [];
     if (cfg.showBuildings) {
@@ -79,7 +79,7 @@ async function generate() {
     const size = bbox.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.z);
     const groundCenter = new THREE.Vector3(center.x, 0, center.z);
-    ctx.camera.position.set(center.x - maxDim * 0.7, maxDim * 0.6, center.z + maxDim * 0.9);
+    ctx.camera.position.set(center.x - maxDim * 0.3, maxDim * 2.0, center.z + maxDim * 0.5);
     ctx.controls.target.copy(groundCenter);
     ctx.controls.update();
 
