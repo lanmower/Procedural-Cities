@@ -1,19 +1,14 @@
-// Plot extraction from road network - faithful port of BaseLibrary::getSurroundingPolygons
-// Uses linked-line algorithm to find city blocks between roads
-
-import { dist, normalize, mid, rot90, add, scale, sub, polyIsClockwise, polyDecreaseEdges, polyClipEdges, getProperIntersection } from './utils.js';
+import { dist, normalize, rot90, add, scale, sub, polyIsClockwise, segIntersect, getProperIntersection } from './utils.js';
 
 export function extractPlots(roads, cfg = {}) {
   const { extraLen = 2000, width = 50, middleOffset = 100, minRoadLen = 500, extraRoadLen = 100 } = cfg;
   if (!roads.length) return [];
-
   return getSurroundingPolygons(roads, roads, 200, extraLen, extraRoadLen, width, middleOffset, minRoadLen);
 }
 
-function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoadLen, width, middleOffset, minRoadLen = 3000) {
+function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoadLen, width, middleOffset, minRoadLen) {
   const lines = [];
 
-  // Get coherent lines (side-lines) from each road segment
   for (const f of segments) {
     const tangent = normalize(sub(f.p2, f.p1));
     const extraVec = scale(tangent, extraLen);
@@ -21,69 +16,50 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
     const sideOffsetBegin = scale(rot90(beginNorm), (stdWidth / 2) * f.width);
     const sideOffsetEnd = scale(rot90(tangent), (stdWidth / 2) * f.width);
 
-    // Left side line
-    // C++: left->p2 = f.p1 + sideOffsetBegin - extraLength (p2 at p1-end, extended backward)
-    //      left->p1 = f.p2 + sideOffsetEnd + extraLength   (p1 at p2-end, extended forward)
     const left = {
       p1: add(add(f.p2, sideOffsetEnd), extraVec),
       p2: sub(add(f.p1, sideOffsetBegin), extraVec),
-      parent: null,
-      child: null,
-      point: null
+      parent: null, child: null, point: null
     };
-    decidePolygonFate(segments, blocking, left, lines, true, extraRoadLen, width, middleOffset, 0, minRoadLen);
+    decidePolygonFate(blocking, left, lines, true, extraRoadLen, middleOffset, 0, minRoadLen);
 
-    // Right side line
-    // C++: right->p1 = f.p1 - sideOffsetBegin - extraLength (extended backward)
-    //      right->p2 = f.p2 - sideOffsetEnd + extraLength   (extended forward)
     if (f.width !== 0) {
       const right = {
         p1: sub(sub(f.p1, sideOffsetBegin), extraVec),
         p2: add(sub(f.p2, sideOffsetEnd), extraVec),
-        parent: null,
-        child: null,
-        point: null
+        parent: null, child: null, point: null
       };
-      decidePolygonFate(segments, blocking, right, lines, true, extraRoadLen, width, middleOffset, 0, minRoadLen);
+      decidePolygonFate(blocking, right, lines, true, extraRoadLen, middleOffset, 0, minRoadLen);
     }
   }
 
-  // Build polygons from linked line structures
   const remaining = new Set(lines);
   const polygons = [];
 
   while (remaining.size > 0) {
-    const it = remaining.values();
-    let curr = it.next().value;
+    let curr = remaining.values().next().value;
     const taken = new Set([curr]);
 
-    // Find top of the chain
     while (curr.parent && remaining.has(curr.parent) && !taken.has(curr.parent)) {
       curr = curr.parent;
       taken.add(curr);
     }
 
-    // Build polygon from this chain
-    const poly = [curr.p1, curr.point && (curr.point.x !== 0) ? curr.point : curr.p2];
+    const poly = [curr.p1, curr.point ? curr.point : curr.p2];
     taken.clear();
     taken.add(curr);
     remaining.delete(curr);
 
-    // Follow child chain
     while (curr.child && !taken.has(curr.child)) {
       curr = curr.child;
-      poly.push(curr.point && (curr.point.x !== 0) ? curr.point : curr.p2);
+      poly.push(curr.point ? curr.point : curr.p2);
       remaining.delete(curr);
       taken.add(curr);
     }
 
-    // Check if closed
     if (curr.child && taken.has(curr.child)) {
-      const res = getProperIntersection(curr.p1, curr.p2, curr.child.p1, curr.child.p2);
-      if (res) {
-        poly.shift();
-        poly.push(res);
-      }
+      const res = segIntersect(curr.p1, curr.p2, curr.child.p1, curr.child.p2);
+      if (res) { poly.shift(); poly.push(res); }
       poly.open = false;
     } else {
       poly.open = true;
@@ -92,106 +68,62 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
     polygons.push(poly);
   }
 
-  const maxConnect = 5000;
+  const maxConnect = 1500;
 
-  // Fix open polygons that are close
   for (let i = 0; i < polygons.length; i++) {
     const p = polygons[i];
-    if (p.open && dist(p[0], p[p.length - 1]) < maxConnect) {
-      p.open = false;
-    }
-    // Ensure clockwise
-    if (!polyIsClockwise(p)) {
-      p.reverse();
-    }
+    if (p.open && dist(p[0], p[p.length - 1]) < maxConnect) p.open = false;
+    if (!polyIsClockwise(p)) p.reverse();
   }
 
-  // Combine nearby open polygons
   const prevOpen = [];
   for (let i = 0; i < polygons.length; i++) {
     const p = polygons[i];
-    if (p.open) {
-      let added = false;
-      for (const p2 of prevOpen) {
-        if (dist(p2[0], p[0]) < maxConnect) {
-          p2.reverse();
-          p2.push(...p);
-          added = true;
-          break;
-        } else if (dist(p2[p2.length - 1], p[0]) < maxConnect) {
-          p2.push(...p);
-          added = true;
-          break;
-        } else if (dist(p2[0], p[p.length - 1]) < maxConnect) {
-          p2.reverse();
-          p.reverse();
-          p2.push(...p);
-          added = true;
-          break;
-        } else if (dist(p2[p2.length - 1], p[p.length - 1]) < maxConnect) {
-          p.reverse();
-          p2.push(...p);
-          added = true;
-          break;
-        }
+    if (!p.open) continue;
+    let added = false;
+    for (const p2 of prevOpen) {
+      if (dist(p2[0], p[0]) < maxConnect) {
+        p2.reverse(); p2.push(...p); added = true; break;
+      } else if (dist(p2[p2.length - 1], p[0]) < maxConnect) {
+        p2.push(...p); added = true; break;
+      } else if (dist(p2[0], p[p.length - 1]) < maxConnect) {
+        p2.reverse(); p.reverse(); p2.push(...p); added = true; break;
+      } else if (dist(p2[p2.length - 1], p[p.length - 1]) < maxConnect) {
+        p.reverse(); p2.push(...p); added = true; break;
       }
-      if (!added) {
-        prevOpen.push(p);
-      }
-      polygons.splice(i, 1);
-      i--;
     }
+    if (!added) prevOpen.push(p);
+    polygons.splice(i, 1);
+    i--;
   }
   polygons.push(...prevOpen);
 
-  // Final cleanup
   for (let i = 0; i < polygons.length; i++) {
     const p = polygons[i];
-    if (p.open && dist(p[0], p[p.length - 1]) < maxConnect) {
-      p.open = false;
-    }
-    polyClipEdges(p, -0.96);
-    if (p.length < 3) {
-      polygons.splice(i, 1);
-      i--;
-    }
+    if (p.open && dist(p[0], p[p.length - 1]) < maxConnect) p.open = false;
+    if (p.length < 3) { polygons.splice(i, 1); i--; }
   }
 
   return polygons;
 }
 
-function decidePolygonFate(segments, blocking, inLine, lines, allowSplit, extraRoadLen, width, middleOffset, depth, minRoadLen = 3000) {
-  const len = dist(inLine.p1, inLine.p2);
+function decidePolygonFate(blocking, inLine, lines, allowSplit, extraRoadLen, middleOffset, depth, minRoadLen) {
+  if (dist(inLine.p1, inLine.p2) < minRoadLen || depth > 3) return;
 
-  if (len < minRoadLen || depth > 3) {
-    return;
-  }
-
-  const tangent1 = normalize(sub(inLine.p2, inLine.p1));
-  const tangent2 = rot90(tangent1);
-
-  // Check for road collisions
   for (const f of blocking) {
     const tangent = normalize(sub(f.p2, f.p1));
-    const toUseExtraLen = extraRoadLen;
     const intSec = getProperIntersection(
-      sub(f.p1, scale(tangent, toUseExtraLen)),
-      add(f.p2, scale(tangent, toUseExtraLen)),
-      inLine.p1,
-      inLine.p2
+      sub(f.p1, scale(tangent, extraRoadLen)),
+      add(f.p2, scale(tangent, extraRoadLen)),
+      inLine.p1, inLine.p2
     );
 
     if (intSec && (intSec.x !== 0 || intSec.y !== 0)) {
-      if (!allowSplit) {
-        return;
-      }
-
+      if (!allowSplit) return;
       const altTangent = rot90(tangent);
-      const newP = {};
-
+      const newP = { parent: null, child: null, point: null };
       const diff1 = Math.pow(dist(intSec, inLine.p1), 2) - Math.pow(dist(add(intSec, scale(altTangent, middleOffset)), inLine.p1), 2);
       const diff2 = Math.pow(dist(intSec, inLine.p2), 2) - Math.pow(dist(add(intSec, scale(altTangent, middleOffset)), inLine.p2), 2);
-
       if (diff1 > diff2) {
         newP.p1 = inLine.p1;
         newP.p2 = add(intSec, scale(altTangent, middleOffset));
@@ -201,40 +133,24 @@ function decidePolygonFate(segments, blocking, inLine, lines, allowSplit, extraR
         newP.p2 = inLine.p2;
         inLine.p2 = sub(intSec, scale(altTangent, middleOffset));
       }
-
-      newP.parent = null;
-      newP.child = null;
-      newP.point = null;
-      decidePolygonFate(segments, blocking, newP, lines, true, extraRoadLen, width, middleOffset, depth + 1, minRoadLen);
+      decidePolygonFate(blocking, newP, lines, true, extraRoadLen, middleOffset, depth + 1, minRoadLen);
     }
   }
 
-  if (dist(inLine.p1, inLine.p2) < minRoadLen) {
-    return;
-  }
+  if (dist(inLine.p1, inLine.p2) < minRoadLen) return;
 
-  // Check intersections with other lines
   for (let i = 0; i < lines.length; i++) {
     const pol = lines[i];
-    const tangent3 = normalize(sub(pol.p2, pol.p1));
-    const tangent4 = rot90(tangent3);
-
-    const res = getProperIntersection(pol.p1, pol.p2, inLine.p1, inLine.p2);
-
+    const res = segIntersect(pol.p1, pol.p2, inLine.p1, inLine.p2);
     if (res && (res.x !== 0 || res.y !== 0)) {
       const d1 = Math.pow(dist(pol.p1, res), 2);
       const d2 = Math.pow(dist(inLine.p2, res), 2);
       const d3 = Math.pow(dist(pol.p2, res), 2);
       const d4 = Math.pow(dist(inLine.p1, res), 2);
-
       if (d1 + d2 > d3 + d4) {
-        inLine.parent = pol;
-        pol.child = inLine;
-        pol.point = res;
+        inLine.parent = pol; pol.child = inLine; pol.point = res;
       } else {
-        pol.parent = inLine;
-        inLine.child = pol;
-        inLine.point = res;
+        pol.parent = inLine; inLine.child = pol; inLine.point = res;
       }
     }
   }
