@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { generateRoads } from './roadGen.js';
 import { extractPlots } from './plotGen.js';
-import { generateBuildings } from './buildingGen.js';
+import { generateHousePolygons } from './buildingGen.js';
+import { getHouseInfo } from './houseBuilder.js';
 import { createScene, buildCityMesh } from './scene.js';
 
 const overlay = document.getElementById('overlay');
@@ -14,19 +15,18 @@ function getConfig() {
     length:    parseInt(document.getElementById('segments').value) || 400,
     mainBranchChance: parseFloat(document.getElementById('branch').value) || 0.3,
     showBuildings: document.getElementById('bldgs').checked,
-    noiseScale: 0.0001,
-    primaryStep: 1500,
-    secondaryStep: 900,
+    noiseScale: 0.00003,
+    primaryStep: 5000,
+    secondaryStep: 3000,
     changeIntensity: 30,
     secondaryChangeIntensity: 45,
     maxMainLen: 15,
     maxSecondaryLen: 8,
     mainAdvantage: 0.1,
     standardWidth: 200,
-    maxAttach: 600,
-    mainRoadDetrimentRange: 300000,
+    maxAttach: 2000,
+    mainRoadDetrimentRange: 1000000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 1200,
   };
 }
 
@@ -44,15 +44,18 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const plots = extractPlots(roads, { extraLen: 150, width: 50, middleOffset: 30, maxConnect: 1500, minRoadLen: 900 });
+    const plots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, minRoadLen: 500 });
 
-    let buildings = [];
+    let materialPols = [];
     if (cfg.showBuildings) {
       overlay.textContent = 'Generating buildings…';
       await tick();
       for (const plot of plots) {
-        const bldgs = generateBuildings(plot, { minFloors: 3, maxFloors: 60, seed: cfg.seed });
-        buildings.push(...bldgs);
+        const housePols = generateHousePolygons(plot, { minFloors: 3, maxFloors: 60, seed: cfg.seed, roadStep: cfg.primaryStep });
+        for (const house of housePols) {
+          const info = getHouseInfo(house);
+          materialPols.push(...info.pols);
+        }
       }
     }
 
@@ -63,14 +66,13 @@ async function generate() {
       ctx.scene.remove(currentMesh);
       currentMesh.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     }
-    currentMesh = buildCityMesh(ctx.scene, roads, plots, buildings);
+    currentMesh = buildCityMesh(ctx.scene, roads, plots, materialPols);
 
-    // frame the generated city
     const bbox = new THREE.Box3().setFromObject(currentMesh);
     const center = bbox.getCenter(new THREE.Vector3());
     const size = bbox.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.z);
-    ctx.camera.position.set(center.x, maxDim * 0.6, center.z + maxDim * 0.7);
+    ctx.camera.position.set(center.x, maxDim * 0.8, center.z + maxDim * 0.9);
     ctx.controls.target.copy(center);
     ctx.controls.update();
 
