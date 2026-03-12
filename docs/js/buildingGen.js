@@ -24,7 +24,7 @@ function subdivide(pts, maxArea, depth) {
 }
 
 export function generateHousePolygons(plot, cfg = {}) {
-  const { minFloors = 3, maxFloors = 60, seed = 0, noiseScale = 0.00003, roadStep = 5000 } = cfg;
+  const { minFloors = 3, maxFloors = 60, seed = 0, noiseScale = 0.0003 } = cfg;
   const pts = Array.isArray(plot) ? plot : plot.points;
   const isOpen = Array.isArray(plot) ? plot.open : plot.open;
   if (isOpen) return [];
@@ -35,16 +35,13 @@ export function generateHousePolygons(plot, cfg = {}) {
 
   if (rng() < 0.05) return [];
 
-  // Scale building footprint target to road spacing (C++ uses ~200-500 unit roads with 3000-6000 area)
-  const areaScale = (roadStep / 300) ** 2;
-  const currMaxArea = (rng() * (6000 - 3000) + 3000) * areaScale;
   const area = polyArea(pts);
-  if (area > currMaxArea * 30000) return [];  // truly enormous plots only
+  const targetPieces = rng() * (20 - 10) + 10;
+  const currMaxArea = area / targetPieces;
+  const minArea = currMaxArea * 0.15;
 
   const pieces = subdivide(pts, currMaxArea, 0);
   const result = [];
-
-  const minArea = 1200 * areaScale;
   for (const pts of pieces) {
     if (polyArea(pts) < minArea) continue;
     const cen = polyCenter(pts);

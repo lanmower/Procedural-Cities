@@ -4,9 +4,9 @@ import { add, sub, scale, normalize, dist, rot90, mid, polyArea, polyIsClockwise
 import { seededRandom } from './noise.js';
 
 const floorHeight = 400;
-const holeSizeX = 1200, holeSizeY = 1600;
+const holeSizeX = 600, holeSizeY = 800;
 const corrWidth = 300;
-const maxApartmentSize = 4000 * 4000;
+const maxApartmentSize = 200 * 200;
 
 // --- helpers ---
 function pt(x, y, z = 0) { return { x, y, z }; }
@@ -46,10 +46,9 @@ function getShaftHolePolygon(f, rng) {
     const hx = scale(edge, holeSizeX / 2), hy = scale(edgePerp, holeSizeY / 2);
     return [
       add(add(origin, hx), hy),
-      add(sub(origin, hx), hy),
+      sub(add(origin, hx), hy),
       sub(sub(origin, hx), hy),
-      add(sub(origin, hx), scale(hy, -1)),
-      add(add(origin, hx), scale(hy, -1)),
+      add(sub(origin, hx), hy),
     ].map(p => xy(p));
   }
 
@@ -225,6 +224,18 @@ function addRoofDetail(f, rng) {
   return pols;
 }
 
+function buildExteriorShell(f, floorIdx) {
+  const pols = [];
+  const pts = f.points;
+  const z = floorIdx * floorHeight;
+  for (let i = 0; i < pts.length; i++) {
+    const a = withZ(xy(pts[i]), z);
+    const b = withZ(xy(pts[(i + 1) % pts.length]), z);
+    pols.push({ points: wallQuad(a, b, floorHeight), type: 'exterior' });
+  }
+  return pols;
+}
+
 // --- Main entry ---
 export function getHouseInfo(f) {
   const center = polyCenter(f.points.map(xy));
@@ -248,6 +259,7 @@ export function getHouseInfo(f) {
   const numFloors = Math.max(1, f.height || 3);
 
   // 3. ground floor
+  pols.push(...buildExteriorShell(f, 0));
   const groundRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, 0);
   for (const room of groundRooms) {
     const { pols: rp, meshes: rm } = buildApartment(room, 0, rng);
@@ -259,6 +271,7 @@ export function getHouseInfo(f) {
     const shrinkPlots = potentiallyShrink(f, hole, rng);
     remainingPlots.push(...shrinkPlots);
     pols.push(addFloorWithHole(f, hole, floorHeight * i));
+    pols.push(...buildExteriorShell(f, i));
     const rooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, i);
     for (const room of rooms) {
       const { pols: rp, meshes: rm } = buildApartment(room, i, rng);

@@ -9,9 +9,9 @@ const MATS = {
   interior:    new THREE.MeshLambertMaterial({ color: 0xe8e4dc, side: THREE.DoubleSide }),
   floor:       new THREE.MeshLambertMaterial({ color: 0x9a9590 }),
   roof:        new THREE.MeshLambertMaterial({ color: 0x787470 }),
-  road:        new THREE.MeshLambertMaterial({ color: 0x3a3a36 }),
-  roadLine:    new THREE.MeshLambertMaterial({ color: 0xd0c060 }),
-  plot:        new THREE.MeshLambertMaterial({ color: 0x454540 }),
+  road:        new THREE.MeshLambertMaterial({ color: 0x222220 }),
+  roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060 }),
+  plot:        new THREE.MeshLambertMaterial({ color: 0x5a5a55 }),
 };
 
 export function createScene(container) {
@@ -76,7 +76,7 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
 
   // Roads
   const roadQuads = roads.map(r => [r.v1, r.v2, r.v4, r.v3]);
-  const roadGeo = mergeQuads(roadQuads, SCALE, 0.1);
+  const roadGeo = mergeQuads(roadQuads, SCALE, 0.2);
   if (roadGeo) {
     const m = new THREE.Mesh(roadGeo, MATS.road);
     m.receiveShadow = true;
@@ -140,7 +140,7 @@ function mergeQuads(quads, sc, yOff = 0) {
   let vi = 0;
   for (const [a, b, c, d] of quads) {
     for (const p of [a, b, c, d]) pos.push(p.x * sc, yOff, p.y * sc);
-    idx.push(vi, vi+1, vi+2, vi, vi+2, vi+3);
+    idx.push(vi, vi+2, vi+1, vi, vi+3, vi+2);
     vi += 4;
   }
   return buildGeo(pos, idx);
