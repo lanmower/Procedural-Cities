@@ -47,7 +47,7 @@ async function generate() {
     overlay.textContent = 'Extracting plots…';
     await tick();
     const allPlots = extractPlots(roads, { extraLen: 2000, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 500 });
-    const closedBig = allPlots.filter(p => !p.open && polyArea(p) > 500000 && polyArea(p) < 8000000);
+    const closedBig = allPlots.filter(p => !p.open && polyArea(p) > 5000);
     const cx = closedBig.reduce((s, p) => s + p.reduce((a, pt) => a + pt.x, 0) / p.length, 0) / (closedBig.length || 1);
     const cy = closedBig.reduce((s, p) => s + p.reduce((a, pt) => a + pt.y, 0) / p.length, 0) / (closedBig.length || 1);
     const plots = closedBig.filter(p => {
