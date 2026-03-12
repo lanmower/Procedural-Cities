@@ -14,18 +14,19 @@ function getConfig() {
     length:    parseInt(document.getElementById('segments').value) || 400,
     mainBranchChance: parseFloat(document.getElementById('branch').value) || 0.3,
     showBuildings: document.getElementById('bldgs').checked,
-    noiseScale: 0.00003,
-    primaryStep: 5000,
-    secondaryStep: 3000,
+    noiseScale: 0.0001,
+    primaryStep: 1500,
+    secondaryStep: 900,
     changeIntensity: 30,
     secondaryChangeIntensity: 45,
     maxMainLen: 15,
     maxSecondaryLen: 8,
     mainAdvantage: 0.1,
     standardWidth: 200,
-    maxAttach: 2000,
-    mainRoadDetrimentRange: 1000000,
+    maxAttach: 600,
+    mainRoadDetrimentRange: 300000,
     mainRoadDetrimentImpact: 0.01,
+    closeMiddle: 1200,
   };
 }
 
@@ -43,14 +44,14 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const plots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, maxConnect: 5000 });
+    const plots = extractPlots(roads, { extraLen: 150, width: 50, middleOffset: 30, maxConnect: 1500, minRoadLen: 900 });
 
     let buildings = [];
     if (cfg.showBuildings) {
       overlay.textContent = 'Generating buildings…';
       await tick();
       for (const plot of plots) {
-        const bldgs = generateBuildings(plot, { minFloors: 3, maxFloors: 30, seed: cfg.seed });
+        const bldgs = generateBuildings(plot, { minFloors: 3, maxFloors: 60, seed: cfg.seed });
         buildings.push(...bldgs);
       }
     }
