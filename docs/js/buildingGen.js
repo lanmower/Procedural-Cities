@@ -11,13 +11,19 @@ const MAX_DEPTH = 8;
 const FLOOR_HEIGHT = 400;  // Height per floor in units
 
 export function generateBuildings(plot, cfg = {}) {
-  const { minFloors = 3, maxFloors = 20, seed = 0 } = cfg;
+  const { minFloors = 3, maxFloors = 20, seed = 0, noiseScale = 0.00003 } = cfg;
   const cen = polyCenter(plot);
   const rng = seededRandom(Math.abs(Math.floor(cen.x * 7 + cen.y * 13 + seed)) >>> 0);
+  const noise = new SimplexNoise(seed);
 
   if (polyArea(plot) < MIN_AREA) return [];
 
   const maxArea = MAX_AREA_BASE + rng() * MAX_AREA_RANGE;
+
+  if (polyArea(plot) > maxArea * 30) return [];
+
+  if (rng() < 0.05) return [];
+
   const footprints = subdivide(plot, maxArea, 0);
   const buildings = [];
 
@@ -25,9 +31,13 @@ export function generateBuildings(plot, cfg = {}) {
     const fpArea = polyArea(fp);
     if (fpArea < MIN_AREA) continue;
     const fcen = polyCenter(fp);
-    const floors = Math.max(minFloors, Math.floor(
-      minFloors + (maxFloors - minFloors) * (-Math.log(rng() * 0.95 + 0.05) / 4)
-    ));
+    const noiseVal = noise.noise(fcen.x * noiseScale, fcen.y * noiseScale);
+    const noiseFactor = 0.5 + noiseVal * 0.5;
+    const noiseHeightInfluence = 0.7;
+    const adjustedNoiseFactor = (1 - noiseHeightInfluence) + noiseFactor * noiseHeightInfluence;
+    const randVal = Math.min(1, Math.max(0.001, rng()));
+    const modifier = -Math.log(Math.min(1 - adjustedNoiseFactor + 0.02, 1) + (1 - Math.min(1 - adjustedNoiseFactor + 0.02, 1)) * randVal) / 4;
+    const floors = Math.max(minFloors, Math.floor(minFloors + (maxFloors - minFloors) * modifier * adjustedNoiseFactor));
     buildings.push({ footprint: fp, floors, center: fcen, area: fpArea });
   }
 

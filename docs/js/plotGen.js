@@ -4,7 +4,7 @@
 import { dist, normalize, mid, rot90, add, scale, sub, polyIsClockwise, polyDecreaseEdges, polyClipEdges, getProperIntersection } from './utils.js';
 
 export function extractPlots(roads, cfg = {}) {
-  const { extraLen = 500, width = 100, middleOffset = 50 } = cfg;
+  const { extraLen = 500, width = 50, middleOffset = 100 } = cfg;
   if (!roads.length) return [];
 
   // Identical algorithm to getSurroundingPolygons from BaseLibrary.cpp
@@ -17,15 +17,17 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
   // Get coherent lines (side-lines) from each road segment
   for (const f of segments) {
     const tangent = normalize(sub(f.p2, f.p1));
-    const extraLength = scale(tangent, extraLen);
+    const extraVec = scale(tangent, extraLen);
     const beginNorm = normalize(f.beginTangent || tangent);
     const sideOffsetBegin = scale(rot90(beginNorm), (stdWidth / 2) * f.width);
     const sideOffsetEnd = scale(rot90(tangent), (stdWidth / 2) * f.width);
 
     // Left side line
+    // C++: left->p2 = f.p1 + sideOffsetBegin - extraLength (p2 at p1-end, extended backward)
+    //      left->p1 = f.p2 + sideOffsetEnd + extraLength   (p1 at p2-end, extended forward)
     const left = {
-      p1: add(f.p2, sideOffsetEnd, extraLength),
-      p2: sub(f.p1, sideOffsetBegin, extraLength),
+      p1: add(add(f.p2, sideOffsetEnd), extraVec),
+      p2: sub(add(f.p1, sideOffsetBegin), extraVec),
       parent: null,
       child: null,
       point: null
@@ -33,10 +35,12 @@ function getSurroundingPolygons(segments, blocking, stdWidth, extraLen, extraRoa
     decidePolygonFate(segments, blocking, left, lines, true, extraRoadLen, width, middleOffset, 0);
 
     // Right side line
+    // C++: right->p1 = f.p1 - sideOffsetBegin - extraLength (extended backward)
+    //      right->p2 = f.p2 - sideOffsetEnd + extraLength   (extended forward)
     if (f.width !== 0) {
       const right = {
-        p1: sub(f.p1, sideOffsetBegin, extraLength),
-        p2: add(f.p2, sideOffsetEnd, extraLength),
+        p1: sub(sub(f.p1, sideOffsetBegin), extraVec),
+        p2: add(sub(f.p2, sideOffsetEnd), extraVec),
         parent: null,
         child: null,
         point: null
