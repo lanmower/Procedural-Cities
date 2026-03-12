@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const SCALE = 0.01;
 
-const BLDG_COLORS = [0x3a3d4a, 0x2e3240, 0x404555, 0x333845, 0x4a4d58, 0x4a3830, 0x3d3028];
+const BLDG_COLORS = [0x5a6080, 0x4e5870, 0x607085, 0x536070, 0x6a7090, 0x7a5850, 0x6d5048];
 
 export function createScene(container) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -17,26 +17,26 @@ export function createScene(container) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x080810);
-  scene.fog = new THREE.Fog(0x080810, 300, 1000);
+  scene.fog = new THREE.Fog(0x080810, 800, 3000);
 
-  const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 2000);
-  camera.position.set(0, 200, 200);
+  const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 5000);
+  camera.position.set(0, 400, 400);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI * 0.48;
 
-  scene.add(new THREE.AmbientLight(0x303040, 1.5));
+  scene.add(new THREE.AmbientLight(0x6070a0, 3.0));
 
-  const sun = new THREE.DirectionalLight(0xfff0e0, 2.0);
-  sun.position.set(200, 400, 100);
+  const sun = new THREE.DirectionalLight(0xfff0e0, 4.0);
+  sun.position.set(500, 800, 300);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 1500;
-  sun.shadow.camera.left = sun.shadow.camera.bottom = -600;
-  sun.shadow.camera.right = sun.shadow.camera.top = 600;
+  sun.shadow.camera.far = 4000;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -1500;
+  sun.shadow.camera.right = sun.shadow.camera.top = 1500;
   scene.add(sun);
 
   const fill = new THREE.DirectionalLight(0x4060a0, 0.5);
@@ -44,7 +44,7 @@ export function createScene(container) {
   scene.add(fill);
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(3000, 3000),
+    new THREE.PlaneGeometry(8000, 8000),
     new THREE.MeshLambertMaterial({ color: 0x111110 })
   );
   ground.rotation.x = -Math.PI / 2;
@@ -74,7 +74,7 @@ export function buildCityMesh(scene, roads, plots, buildings) {
   const roadQuads = roads.map(r => [r.v1, r.v2, r.v4, r.v3]);
   const roadGeo = mergeQuads(roadQuads, SCALE, 0.1);
   if (roadGeo) {
-    const m = new THREE.Mesh(roadGeo, new THREE.MeshLambertMaterial({ color: 0x252521 }));
+    const m = new THREE.Mesh(roadGeo, new THREE.MeshLambertMaterial({ color: 0x3a3a36 }));
     m.receiveShadow = true;
     group.add(m);
   }
@@ -107,7 +107,7 @@ export function buildCityMesh(scene, roads, plots, buildings) {
   // Plot fills (sidewalk / ground between roads)
   const plotGeo = mergePolygons(plots, SCALE, 0.05);
   if (plotGeo) {
-    const m = new THREE.Mesh(plotGeo, new THREE.MeshLambertMaterial({ color: 0x2a2a27 }));
+    const m = new THREE.Mesh(plotGeo, new THREE.MeshLambertMaterial({ color: 0x3e3e38 }));
     m.receiveShadow = true;
     group.add(m);
   }
