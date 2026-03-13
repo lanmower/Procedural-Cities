@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { generateRoads } from './roadGen.js?v=e61741b';
-import { extractPlots } from './plotGen.js?v=e61741b';
-import { generateHousePolygons } from './buildingGen.js?v=e61741b';
-import { getHouseInfo } from './houseBuilder.js?v=e61741b';
-import { getSideWalkPolygons } from './sidewalkGen.js?v=e61741b';
-import { createScene, buildCityMesh } from './scene.js?v=e61741b';
+import { generateRoads } from './roadGen.js?v=fix-scale-1';
+import { extractPlots } from './plotGen.js?v=fix-scale-1';
+import { generateHousePolygons } from './buildingGen.js?v=fix-scale-1';
+import { getHouseInfo } from './houseBuilder.js?v=fix-scale-1';
+import { getSideWalkPolygons } from './sidewalkGen.js?v=fix-scale-1';
+import { createScene, buildCityMesh } from './scene.js?v=fix-scale-1';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
@@ -16,19 +16,19 @@ function getConfig() {
     length:    parseInt(document.getElementById('segments').value) || 400,
     mainBranchChance: parseFloat(document.getElementById('branch').value) || 0.3,
     showBuildings: document.getElementById('bldgs').checked,
-    noiseScale: 0.00005,
-    primaryStep: 3000,
-    secondaryStep: 2000,
+    noiseScale: 0.00003,
+    primaryStep: 5000,
+    secondaryStep: 3000,
     changeIntensity: 5,
     secondaryChangeIntensity: 8,
     maxMainLen: 15,
     maxSecondaryLen: 8,
     mainAdvantage: 0.1,
-    standardWidth: 200,
-    maxAttach: 2000,
-    mainRoadDetrimentRange: 1000000,
+    standardWidth: 300,
+    maxAttach: 3000,
+    mainRoadDetrimentRange: 1500000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 800,
+    closeMiddle: 4000,
   };
 }
 
@@ -46,7 +46,7 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const allPlots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 500 });
+    const allPlots = extractPlots(roads, { extraLen: 800, width: 50, middleOffset: 150, extraRoadLen: 150, minRoadLen: 1000 });
     const plots = allPlots.filter(p => !p.open);
 
     let materialPols = [];
@@ -61,7 +61,7 @@ async function generate() {
       overlay.textContent = 'Generating buildings…';
       await tick();
       for (const plot of plots) {
-        const housePols = generateHousePolygons(plot, { minFloors: 3, maxFloors: 60, seed: cfg.seed, noiseScale: cfg.noiseScale });
+        const housePols = generateHousePolygons(plot, { minFloors: 1, maxFloors: 30, seed: cfg.seed, noiseScale: 0.0002 });
         for (const house of housePols) {
           const info = getHouseInfo(house);
           materialPols.push(...info.pols);
