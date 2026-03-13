@@ -23,9 +23,9 @@ function getHeight(center, rng, noiseScale, minFloors, maxFloors, noise) {
 // C++ getArea() uses 0.0001 scale factor, so C++ maxArea=6000 → JS maxArea = 6000/0.0001 = 60_000_000
 // But all our coordinates are in raw UE cm, so we match by scaling maxArea accordingly.
 const CPP_AREA_SCALE = 0.0001;
-const CPP_MAX_AREA = 1000;
-const CPP_MIN_AREA = 500;
-const CPP_MIN_BUILD_AREA = 200;
+const CPP_MAX_AREA = 6000;
+const CPP_MIN_AREA = 3000;
+const CPP_MIN_BUILD_AREA = 1200;
 
 function recursiveSplit(pts, maxArea, minArea, depth) {
   const area = polyArea(pts) * CPP_AREA_SCALE;
