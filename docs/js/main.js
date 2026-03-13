@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { generateRoads } from './roadGen.js?v=full-port-4';
-import { extractPlots } from './plotGen.js?v=full-port-4';
-import { generateHousePolygons } from './buildingGen.js?v=full-port-4';
-import { getHouseInfo } from './houseBuilder.js?v=full-port-4';
-import { getSideWalkPolygons, getSidewalkWithDecorations } from './sidewalkGen.js?v=full-port-4';
-import { createScene, buildCityMesh } from './scene.js?v=full-port-4';
-import { getCrossingsForRoads, getBushesAtCorners, getGrassPatches } from './plotDecorations.js?v=full-port-4';
+import { generateRoads } from './roadGen.js?v=full-port-5';
+import { extractPlots } from './plotGen.js?v=full-port-5';
+import { generateHousePolygons } from './buildingGen.js?v=full-port-5';
+import { getHouseInfo } from './houseBuilder.js?v=full-port-5';
+import { getSideWalkPolygons, getSidewalkWithDecorations } from './sidewalkGen.js?v=full-port-5';
+import { createScene, buildCityMesh } from './scene.js?v=full-port-5';
+import { getCrossingsForRoads, getBushesAtCorners, getGrassPatches } from './plotDecorations.js?v=full-port-5';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
@@ -17,11 +17,11 @@ function getConfig() {
     length:    parseInt(document.getElementById('segments').value) || 400,
     mainBranchChance: parseFloat(document.getElementById('branch').value) || 0.3,
     showBuildings: document.getElementById('bldgs').checked,
-    noiseScale: 0.00005,
-    primaryStep: 3000,
-    secondaryStep: 2000,
-    changeIntensity: 5,
-    secondaryChangeIntensity: 8,
+    noiseScale: 0.00003,
+    primaryStep: 5000,
+    secondaryStep: 3000,
+    changeIntensity: 30,
+    secondaryChangeIntensity: 45,
     maxMainLen: 15,
     maxSecondaryLen: 8,
     mainAdvantage: 0.1,
@@ -29,7 +29,7 @@ function getConfig() {
     maxAttach: 2000,
     mainRoadDetrimentRange: 1000000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 800,
+    closeMiddle: 4000,
   };
 }
 
@@ -47,7 +47,7 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const allPlots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 500 });
+    const allPlots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 3000 });
     const plots = allPlots.filter(p => !p.open);
 
     let materialPols = [];

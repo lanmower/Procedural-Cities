@@ -52,22 +52,29 @@ function getPolygonDirection(pts){
 }
 
 export function fillOutPolygon(p){
-  const others=[];
+  const otherSides=[p];
   const width=p.width||0;
-  if(width<=0)return others;
+  if(width<=0)return otherSides;
   const dir=getPolygonDirection(p.points);
   const off=v3scale(dir,width);
   const innerPts=p.points.map(pt=>v3add(pt,off));
   const innerType=(p.type==='exterior'||p.type==='exteriorSnd')?'interior':p.type;
-  if(p.overridePolygonSides===true){
+  let polygonSides=true;
+  if(p.type==='exterior'||p.type==='exteriorSnd'){
+    if(!p.overridePolygonSides) polygonSides=false;
+  }
+  if(!p.overridePolygonSides&&(p.type==='floor'||p.type==='interior')||p.type==='roof'){
+    polygonSides=false;
+  }
+  if(polygonSides){
     const n=p.points.length;
     for(let i=1;i<=n;i++){
-      others.push({points:[innerPts[i-1],p.points[i%n],p.points[i-1]],type:innerType});
-      others.push({points:[innerPts[i-1],innerPts[i%n],p.points[i%n]],type:innerType});
+      otherSides.push({points:[innerPts[i-1],p.points[i%n],p.points[i-1]],type:innerType});
+      otherSides.push({points:[innerPts[i-1],innerPts[i%n],p.points[i%n]],type:innerType});
     }
   }
-  others.push({points:[...innerPts].reverse(),type:innerType});
-  return others;
+  otherSides.push({points:[...innerPts].reverse(),type:innerType});
+  return otherSides;
 }
 
 export function fillOutPolygons(pols){
