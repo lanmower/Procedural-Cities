@@ -68,8 +68,8 @@ export function generateHousePolygons(plot, cfg = {}) {
   // C++: currMaxArea = FRandRange(minMaxArea=3000, maxMaxArea=6000)
   const currMaxArea = CPP_MIN_AREA + rng() * (CPP_MAX_AREA - CPP_MIN_AREA);
 
-  if (plotArea > currMaxArea * 8) return []; // too big → green plot (skip)
-  if (plotArea > currMaxArea * 30) return []; // enormous → ignore
+  if (plotArea > currMaxArea * 8) { console.log('skip:tooBig', plotArea, currMaxArea*8); return []; }
+  if (plotArea > currMaxArea * 30) { console.log('skip:enormous'); return []; }
 
   // Ensure CW winding (C++ does checkOrientation())
   const cwPts = polyIsClockwise(pts) ? pts : [...pts].reverse();
@@ -77,6 +77,7 @@ export function generateHousePolygons(plot, cfg = {}) {
   // C++ refine: decreaseEdges then recursiveSplit
   const pieces = recursiveSplit(cwPts, currMaxArea, CPP_MIN_BUILD_AREA, 0);
 
+  console.log('pieces:', pieces.length, 'plotArea:', plotArea, 'currMaxArea:', currMaxArea);
   // If no pieces (all too small), treat whole plot as one building if large enough
   const toProcess = pieces.length > 0 ? pieces : (plotArea >= CPP_MIN_BUILD_AREA ? [cwPts] : []);
 
