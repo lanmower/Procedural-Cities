@@ -47,7 +47,7 @@ async function generate() {
 
     overlay.textContent = 'Extracting plots…';
     await tick();
-    const allPlots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 3000 });
+    const allPlots = extractPlots(roads, { extraLen: 500, width: 50, middleOffset: 100, extraRoadLen: 100, minRoadLen: 500 });
     const plots = allPlots.filter(p => !p.open);
 
     let materialPols = [];
