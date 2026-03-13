@@ -20,6 +20,10 @@ const MATS = {
   balcony:     new THREE.MeshLambertMaterial({ color: 0xc8c0b0, side: THREE.DoubleSide }),
   tree:        new THREE.MeshLambertMaterial({ color: 0x3a6e2a, side: THREE.DoubleSide }),
   lampPost:    new THREE.MeshLambertMaterial({ color: 0x606060, side: THREE.DoubleSide }),
+  crossing:    new THREE.MeshLambertMaterial({ color: 0xf8f8f0, side: THREE.DoubleSide }),
+  awning:      new THREE.MeshLambertMaterial({ color: 0xc84040, side: THREE.DoubleSide }),
+  bush:        new THREE.MeshLambertMaterial({ color: 0x4a8030, side: THREE.DoubleSide }),
+  furniture:   new THREE.MeshLambertMaterial({ color: 0xa08060, side: THREE.DoubleSide }),
 };
 
 export function createScene(container) {

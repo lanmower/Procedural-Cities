@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { generateRoads } from './roadGen.js?v=full-port-2';
-import { extractPlots } from './plotGen.js?v=full-port-2';
-import { generateHousePolygons } from './buildingGen.js?v=full-port-2';
-import { getHouseInfo } from './houseBuilder.js?v=full-port-2';
-import { getSideWalkPolygons, getSidewalkWithDecorations } from './sidewalkGen.js?v=full-port-2';
-import { createScene, buildCityMesh } from './scene.js?v=full-port-2';
+import { generateRoads } from './roadGen.js?v=full-port-3';
+import { extractPlots } from './plotGen.js?v=full-port-3';
+import { generateHousePolygons } from './buildingGen.js?v=full-port-3';
+import { getHouseInfo } from './houseBuilder.js?v=full-port-3';
+import { getSideWalkPolygons, getSidewalkWithDecorations } from './sidewalkGen.js?v=full-port-3';
+import { createScene, buildCityMesh } from './scene.js?v=full-port-3';
+import { getCrossingsForRoads, getBushesAtCorners, getGrassPatches } from './plotDecorations.js?v=full-port-3';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
@@ -55,7 +56,19 @@ async function generate() {
     await tick();
     for (const plot of plots) {
       materialPols.push(...getSidewalkWithDecorations(plot, 500));
+      const pts = plot.points || plot;
+      if (pts && pts.length >= 3) {
+        const seed = Math.abs(Math.floor((pts[0].x||0)*1000+(pts[0].y||0))) >>> 0;
+        const rng = () => (Math.sin(seed++) * 43758.5453) % 1;
+        let s = seed;
+        const srng = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s>>>0)/0xffffffff; };
+        materialPols.push(...getBushesAtCorners(pts, srng));
+        materialPols.push(...getGrassPatches(pts, srng, 6));
+      }
     }
+    overlay.textContent = 'Generating crosswalks…';
+    await tick();
+    materialPols.push(...getCrossingsForRoads(roads));
 
     if (cfg.showBuildings) {
       overlay.textContent = 'Generating buildings…';
