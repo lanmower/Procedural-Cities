@@ -613,8 +613,9 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
         );
       }
 
-      // windows
-      const windows = [];
+      // windows — C++: spaces = floor(min(windowDensity*len, len/(windowWidth+20)))
+      // then for j=1..spaces-1: place window at j*jumpLen ± windowWidth/2
+      const windowHoles = [];
       if (rp.windows && rp.windows.has(i)) {
         const edgeLen = v3dist(p1, p2);
         const edgeTan = v3norm(v3sub(p2, p1));
@@ -622,29 +623,36 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
         if (spaces > 0) {
           const jumpLen = edgeLen / spaces;
           for (let j = 1; j < spaces; j++) {
-            const cStart = j * jumpLen - windowWidth/2;
-            const cEnd   = j * jumpLen + windowWidth/2;
-            const pw1 = v3add(v3add(p1, v3scale(edgeTan, cStart)), {x:0,y:0,z:50+windowHeight});
-            const pw2 = v3sub(pw1, {x:0,y:0,z:windowHeight});
-            const pw3 = v3add(v3add(p1, v3scale(edgeTan, cEnd)),   {x:0,y:0,z:50});
-            const pw4 = v3add(pw3, {x:0,y:0,z:windowHeight});
-            const win = { points: [pw1, pw2, pw3, pw4], type: shellOnly ? 'occlusionWindow' : 'window', width: 8 };
-            result.push(win);
-            windows.push({ points: [pw1, pw2, pw3, pw4] });
-            if (!windowFrames) {
-              for (let k = 1; k <= 4; k++) {
-                const wp1 = win.points[k-1], wp2 = win.points[k%4];
-                const wdir = v3norm(v3sub(wp2, wp1));
-                const wn = rot90_3(wdir);
-                result.push({ points: [wp1, wp2, v3add(wp2, v3scale(wn, 20)), v3add(wp1, v3scale(wn, 20))], type: 'exterior', width: 0 });
+            let cStart = j * jumpLen - windowWidth/2;
+            let cEnd   = j * jumpLen + windowWidth/2;
+            if (cEnd - cStart > 100) {
+              // pw1 = p1 + tangent*cStart + z(50+windowHeight)  [top-left]
+              // pw2 = pw1 - z(windowHeight)                     [bottom-left]
+              // pw3 = p1 + tangent*cEnd + z(50)                 [bottom-right]
+              // pw4 = pw3 + z(windowHeight)                     [top-right]
+              const pw1 = v3add(v3add(p1, v3scale(edgeTan, cStart)), {x:0,y:0,z:50+windowHeight});
+              const pw2 = v3sub(pw1, {x:0,y:0,z:windowHeight});
+              const pw3 = v3add(v3add(p1, v3scale(edgeTan, cEnd)),   {x:0,y:0,z:50});
+              const pw4 = v3add(pw3, {x:0,y:0,z:windowHeight});
+              // C++ stores: pw1, pw2, pw3, pw4
+              const winPts = [pw1, pw2, pw3, pw4];
+              result.push({ points: winPts, type: shellOnly ? 'occlusionWindow' : 'window', width: 8 });
+              windowHoles.push({ points: winPts });
+              if (!windowFrames) {
+                // add side polygons around window (window reveal/depth)
+                const wallNorm = v3norm(rot90_3(v3sub(p2, p1)));
+                for (let k = 1; k <= 4; k++) {
+                  const wp1 = winPts[k-1], wp2 = winPts[k%4];
+                  result.push({ points: [wp1, wp2, v3add(wp2, v3scale(wallNorm, 20)), v3add(wp1, v3scale(wallNorm, 20))], type: 'exterior', width: 0 });
+                }
               }
             }
           }
         }
       }
 
-      // wall with holes
-      result.push({ points: wallPts, type, windows });
+      // wall with window holes — holes used by scene.js triangulation
+      result.push({ points: wallPts, type, windows: windowHoles });
     }
   }
   return result;
