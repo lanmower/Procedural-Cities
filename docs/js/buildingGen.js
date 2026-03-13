@@ -22,10 +22,10 @@ function getHeight(center, rng, noiseScale, minFloors, maxFloors, noise) {
 //   else return [this]
 // C++ getArea() uses 0.0001 scale factor, so C++ maxArea=6000 → JS maxArea = 6000/0.0001 = 60_000_000
 // But all our coordinates are in raw UE cm, so we match by scaling maxArea accordingly.
-const CPP_AREA_SCALE = 0.0001; // C++ getArea() multiplies by this
-const CPP_MAX_AREA = 6000;     // C++ currMaxArea upper bound
-const CPP_MIN_AREA = 3000;     // C++ minMaxArea lower bound
-const CPP_MIN_BUILD_AREA = 1200; // C++ minArea — plots smaller than this skipped
+const CPP_AREA_SCALE = 0.0001;
+const CPP_MAX_AREA = 1000;
+const CPP_MIN_AREA = 500;
+const CPP_MIN_BUILD_AREA = 200;
 
 function recursiveSplit(pts, maxArea, minArea, depth) {
   const area = polyArea(pts) * CPP_AREA_SCALE;
@@ -68,8 +68,8 @@ export function generateHousePolygons(plot, cfg = {}) {
   // C++: currMaxArea = FRandRange(minMaxArea=3000, maxMaxArea=6000)
   const currMaxArea = CPP_MIN_AREA + rng() * (CPP_MAX_AREA - CPP_MIN_AREA);
 
-  if (plotArea > currMaxArea * 8) { console.log('skip:tooBig', plotArea, currMaxArea*8); return []; }
-  if (plotArea > currMaxArea * 30) { console.log('skip:enormous'); return []; }
+  if (plotArea > currMaxArea * 8) return [];
+  if (plotArea > currMaxArea * 30) return [];
 
   // Ensure CW winding (C++ does checkOrientation())
   const cwPts = polyIsClockwise(pts) ? pts : [...pts].reverse();
@@ -77,7 +77,6 @@ export function generateHousePolygons(plot, cfg = {}) {
   // C++ refine: decreaseEdges then recursiveSplit
   const pieces = recursiveSplit(cwPts, currMaxArea, CPP_MIN_BUILD_AREA, 0);
 
-  console.log('pieces:', pieces.length, 'plotArea:', plotArea, 'currMaxArea:', currMaxArea);
   // If no pieces (all too small), treat whole plot as one building if large enough
   const toProcess = pieces.length > 0 ? pieces : (plotArea >= CPP_MIN_BUILD_AREA ? [cwPts] : []);
 
