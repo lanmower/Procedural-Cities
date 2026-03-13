@@ -69,7 +69,7 @@ function pointInPoly2D(p, poly) {
 // C++: tangent1 = normalize(pts[1]-pts[0]), tangent2 = rot90(tangent1)
 // center = useCenter ? getCenter() : getRandomPoint(true, 3000, stream)
 // Returns 4-point rectangle aligned to first edge
-export function getShaftHolePolygon(f, rng, useCenter) {
+export function getShaftHolePolygon(f, rng, useCenter, scale = 1) {
   const pts = f.points;
   const tangent1 = v3norm(v3sub(pts[1], pts[0]));
   const tangent2 = rot90_3(tangent1);
@@ -84,11 +84,12 @@ export function getShaftHolePolygon(f, rng, useCenter) {
     if (!pointInPoly2D(center, pts.map(xy))) center = { x: c.x, y: c.y, z: 0 };
   }
 
+  const sx = holeSizeX * scale / 2, sy = holeSizeY * scale / 2;
   const hole = [];
-  hole.push(v3add(v3add(center, v3scale(tangent1,  holeSizeX/2)), v3scale(tangent2,  holeSizeY/2)));
-  hole.push(v3add(v3add(center, v3scale(tangent1, -holeSizeX/2)), v3scale(tangent2,  holeSizeY/2)));
-  hole.push(v3add(v3add(center, v3scale(tangent1, -holeSizeX/2)), v3scale(tangent2, -holeSizeY/2)));
-  hole.push(v3add(v3add(center, v3scale(tangent1,  holeSizeX/2)), v3scale(tangent2, -holeSizeY/2)));
+  hole.push(v3add(v3add(center, v3scale(tangent1,  sx)), v3scale(tangent2,  sy)));
+  hole.push(v3add(v3add(center, v3scale(tangent1, -sx)), v3scale(tangent2,  sy)));
+  hole.push(v3add(v3add(center, v3scale(tangent1, -sx)), v3scale(tangent2, -sy)));
+  hole.push(v3add(v3add(center, v3scale(tangent1,  sx)), v3scale(tangent2, -sy)));
   return hole;
 }
 
@@ -685,13 +686,14 @@ export function getHouseInfo(f) {
 
   const holeValid = (h) => h && !polyPolyIntersects2D(h.map(xy), ptsXY) && h.every(p => pointInPoly2D(xy(p), ptsXY));
   let hole = getShaftHolePolygon(f, rng, false);
+  if (!holeValid(hole)) hole = getShaftHolePolygon(f, rng, true);
+  if (!holeValid(hole)) hole = getShaftHolePolygon(f, rng, true, 0.6);
+  if (!holeValid(hole)) hole = getShaftHolePolygon(f, rng, true, 0.35);
+  if (!holeValid(hole)) hole = getShaftHolePolygon(f, rng, true, 0.18);
   if (!holeValid(hole)) {
-    hole = getShaftHolePolygon(f, rng, true);
-    if (!holeValid(hole)) {
-      const whole = { pol: { points: f.points.map(p => withZ(xy(p), simplePlotGroundOffset)) }, type: f.simplePlotType || 'undecided' };
-      toReturn.remainingPlots.push(whole);
-      return toReturn;
-    }
+    const whole = { pol: { points: f.points.map(p => withZ(xy(p), simplePlotGroundOffset)) }, type: f.simplePlotType || 'undecided' };
+    toReturn.remainingPlots.push(whole);
+    return toReturn;
   }
 
   if (f.canBeModified !== false) {
