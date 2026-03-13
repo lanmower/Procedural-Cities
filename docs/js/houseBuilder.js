@@ -363,16 +363,17 @@ function getEntrancePolygons(begin, end, height, thickness) {
 }
 
 // --- addStairInfo ---
+// C++: side.points = [hole[i-1], hole[i-1]+z(height), hole[i%n]+z(height), hole[i%n]]
 export function addStairInfo(info, height, hole) {
   for (let i = 1; i <= hole.length; i++) {
     const p1 = withZ(xy(hole[i-1]), 0);
     const p2 = withZ(xy(hole[i%hole.length]), 0);
     const side = {
       points: [
+        p1,
         v3add(p1, {x:0,y:0,z:height}),
         v3add(p2, {x:0,y:0,z:height}),
         p2,
-        p1,
       ],
       type: 'interior'
     };
@@ -403,6 +404,7 @@ export function addFacade(f, toReturn, beginHeight, facadeHeight, width) {
 }
 
 // --- getSidesOfPolygon helper ---
+// C++: [pts[i-1], pts[i-1]-z(width), pts[i%n]-z(width), pts[i%n]]
 function getSidesOfPolygon(pol, type, height) {
   const sides = [];
   const pts = pol.points;
@@ -410,9 +412,9 @@ function getSidesOfPolygon(pol, type, height) {
     sides.push({
       points: [
         pts[i-1],
-        pts[i % pts.length],
-        v3sub(pts[i % pts.length], {x:0,y:0,z:height}),
         v3sub(pts[i-1], {x:0,y:0,z:height}),
+        v3sub(pts[i % pts.length], {x:0,y:0,z:height}),
+        pts[i % pts.length],
       ],
       type,
       overridePolygonSides: true
@@ -428,16 +430,18 @@ function addDetailOnPolygon(depth, maxDepth, maxBoxes, pol, toReturn, rng, place
   const nextShapes = [];
 
   if (rng() < 0.6) {
-    // edge detail: C++ reverses then raises, adds sides + fillOutPolygons (end caps)
+    // edge detail: C++ does shape=pol; shape.reverse(); shape.offset(z(size));
+    // then getSidesOfPolygon(shape, exteriorSnd, size), fillOutPolygons(sides), append sides
     const size = 50 + rng() * 450;
     const revPts = [...pol.points].reverse();
     const shape = { points: revPts.map(p => v3add(p, {x:0,y:0,z:size})) };
     const sides = getSidesOfPolygon(shape, 'exteriorSnd', size);
     const width = 20 + rng() * 130;
     sides.forEach(s => { s.overridePolygonSides = true; s.width = width; });
-    // fillOutPolygons: for each side quad, add the "other" face (cap polygon between adjacent sides)
+    // fillOutPolygons: for each side, also emit the "other" (inner) face reversed
     for (const s of sides) {
-      toReturn.pols.push({ points: [s.points[0], s.points[3], s.points[2], s.points[1]], type: 'exteriorSnd' });
+      const inner = { points: [...s.points].reverse(), type: 'exteriorSnd' };
+      toReturn.pols.push(inner);
     }
     toReturn.pols.push(...sides);
   }

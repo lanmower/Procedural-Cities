@@ -109,7 +109,8 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
     p1 = add(m, rot2({ x: startOff, y: 0 }, baseAngle));
   }
 
-  let bestAngle = baseAngle, bestVal = -Infinity;
+  // C++ getBestRotation: compares detriment-adjusted val but stores raw noise as bestVal
+  let bestAngle = baseAngle, bestVal = -10000;
   for (let i = 0; i < 7; i++) {
     const a = baseAngle + (rng() * 2 - 1) * maxChange * DEG;
     const testP = add(p1, rot2({ x: step, y: 0 }, a));
@@ -118,7 +119,7 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
       const d = dist(mid(o.seg.p1, o.seg.p2), testP);
       if (d < detrRange) v -= Math.max(0, detrImpact * (detrRange - d) / detrRange);
     }
-    if (v > bestVal) { bestVal = v; bestAngle = a; }
+    if (v > bestVal) { bestAngle = a; bestVal = noiseAt(testP.x, testP.y); }
   }
 
   const p2 = add(p1, rot2({ x: step, y: 0 }, bestAngle));
@@ -134,14 +135,17 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
 
 function sub2(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
 
+// C++ addVertices: v1/v2 use beginTangent at p1, v3/v4 use endTangent at p2
 function computeVerts(seg, sw) {
-  const tan = normalize(sub2(seg.p2, seg.p1));
-  const n = rot90(tan);
+  const endTan = normalize(sub2(seg.p2, seg.p1));
+  const beginTan = seg.beginTangent ? normalize(seg.beginTangent) : endTan;
+  const nBegin = rot90(beginTan);
+  const nEnd = rot90(endTan);
   const hw = sw * seg.width * 0.5;
-  seg.v1 = add(seg.p1, scale(n, hw));
-  seg.v2 = add(seg.p1, scale(n, -hw));
-  seg.v3 = add(seg.p2, scale(n, hw));
-  seg.v4 = add(seg.p2, scale(n, -hw));
+  seg.v1 = add(seg.p1, scale(nBegin, hw));
+  seg.v2 = add(seg.p1, scale(nBegin, -hw));
+  seg.v3 = add(seg.p2, scale(nEnd, hw));
+  seg.v4 = add(seg.p2, scale(nEnd, -hw));
   seg.hw = hw;
 }
 
