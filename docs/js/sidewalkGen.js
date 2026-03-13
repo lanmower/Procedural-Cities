@@ -1,5 +1,7 @@
 // sidewalkGen.js — 1:1 port of PlotBuilder.cpp getSideWalkPolygons + generateSidewalkPolygon
 import { add, sub, scale, normalize, rot90, rot270 } from './utils.js';
+import { getSidewalkDecorations } from './roomFeatures.js';
+import { seededRandom } from './noise.js';
 
 // getNormal matches C++ getNormal(p1,p2,right): right=true -> rot90 of tangent (FRotator 0,90,0)
 function getNormal(p1, p2, right) {
@@ -175,4 +177,16 @@ export function generateSidewalkPolygon(plot, offsetSize) {
     result.push({ ...result[1] });
   }
   return result;
+}
+
+// Returns sidewalk polygons + street decorations (trees, lamp posts)
+export function getSidewalkWithDecorations(plot, width) {
+  const pols = getSideWalkPolygons(plot, width);
+  const pts = Array.isArray(plot) ? plot : (plot.points || plot);
+  const isClockwise = (Array.isArray(plot) ? plot.isClockwise : plot.isClockwise) ?? true;
+  if (!pts || pts.length < 3) return pols;
+  const seed = Math.abs(Math.floor((pts[0].x || 0) * 1000 + (pts[0].y || 0))) >>> 0;
+  const rng = seededRandom(seed);
+  const decorations = getSidewalkDecorations(pts, isClockwise, rng);
+  return [...pols, ...decorations];
 }

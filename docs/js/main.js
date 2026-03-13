@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { generateRoads } from './roadGen.js?v=fix-walls-4';
-import { extractPlots } from './plotGen.js?v=fix-walls-4';
-import { generateHousePolygons } from './buildingGen.js?v=fix-walls-4';
-import { getHouseInfo } from './houseBuilder.js?v=fix-walls-4';
-import { getSideWalkPolygons } from './sidewalkGen.js?v=fix-walls-4';
-import { createScene, buildCityMesh } from './scene.js?v=fix-walls-4';
+import { generateRoads } from './roadGen.js?v=full-port-1';
+import { extractPlots } from './plotGen.js?v=full-port-1';
+import { generateHousePolygons } from './buildingGen.js?v=full-port-1';
+import { getHouseInfo } from './houseBuilder.js?v=full-port-1';
+import { getSideWalkPolygons, getSidewalkWithDecorations } from './sidewalkGen.js?v=full-port-1';
+import { createScene, buildCityMesh } from './scene.js?v=full-port-1';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
@@ -54,7 +54,7 @@ async function generate() {
     overlay.textContent = 'Generating sidewalks…';
     await tick();
     for (const plot of plots) {
-      materialPols.push(...getSideWalkPolygons(plot, 500));
+      materialPols.push(...getSidewalkWithDecorations(plot, 500));
     }
 
     if (cfg.showBuildings) {
