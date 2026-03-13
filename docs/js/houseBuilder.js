@@ -703,7 +703,6 @@ export function getHouseInfo(f) {
   if (!holeValid(hole)) hole = getShaftHolePolygon(f, rng, true, 0.35);
   if (!holeValid(hole)) hole = getShaftHolePolygon(f, rng, true, 0.18);
   if (!holeValid(hole)) {
-    console.log('holeInvalid for pts.length=', ptsXY.length, 'area=', ptsXY.reduce(function(a,_,i,arr){var j=(i+1)%arr.length;return a+arr[i].x*arr[j].y-arr[j].x*arr[i].y;},0)*0.5*0.0001);
     const whole = { pol: { points: f.points.map(p => withZ(xy(p), simplePlotGroundOffset)) }, type: f.simplePlotType || 'undecided' };
     toReturn.remainingPlots.push(whole);
     return toReturn;
