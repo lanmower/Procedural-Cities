@@ -13,6 +13,7 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
       const isExt = rp.exteriorWalls && rp.exteriorWalls.has(i);
       const type = isExt ? 'exterior' : 'interior';
       const p1 = pts[i-1], p2 = pts[i % n];
+      if (v3dist(p1, p2) < 1) continue;
       const tan = v3norm(v3sub(p2, p1));
       let extraFront = {x:0,y:0,z:0}, extraBack = {x:0,y:0,z:0};
       if (!isExt) {
@@ -60,6 +61,8 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
               const pw3 = v3add(v3add(p1, v3scale(edgeTan, cEnd)), {x:0,y:0,z:50});
               const pw4 = v3add(pw3, {x:0,y:0,z:windowHeight});
               const winPts = [pw1, pw2, pw3, pw4];
+              const wxs=winPts.map(p=>p.x),wys=winPts.map(p=>p.y);
+              if(Math.max(...wxs)-Math.min(...wxs)<0.1&&Math.max(...wys)-Math.min(...wys)<0.1)continue;
               result.push({points: winPts, type: shellOnly ? 'occlusionWindow' : 'window', width: 8});
               windowHoles.push({points: winPts});
               if (windowFrames) {

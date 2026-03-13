@@ -93,10 +93,15 @@ function addDetailOnPolygon(depth, maxDepth, maxBoxes, pol, toReturn, rng, place
       }
     }
   } else if (rng() < 0.2 && canCoverCompletely) {
-    const cP = v3add(polyCenter(pol.points.map(xy)),{z:(pol.points[0].z||0)+200+rng()*800});
-    for (let i=1; i<=pol.points.length; i++)
-      toReturn.pols.push({points:[pol.points[i-1],cP,pol.points[i%pol.points.length]],type:'roof'});
-    placed.push(pol);
+    const c2d = polyCenter(pol.points.map(xy));
+    if (isFinite(c2d.x) && isFinite(c2d.y)) {
+      const cP = v3add(c2d, {z:(pol.points[0].z||0)+200+rng()*800});
+      for (let i=1; i<=pol.points.length; i++) {
+        const tri = {points:[pol.points[i-1],cP,pol.points[i%pol.points.length]],type:'roof'};
+        if (tri.points.every(p=>isFinite(p.x)&&isFinite(p.y))) toReturn.pols.push(tri);
+      }
+      placed.push(pol);
+    }
   }
   for (const s of nextShapes) addDetailOnPolygon(depth+1, maxDepth, 1, s, toReturn, rng, [], true);
 }

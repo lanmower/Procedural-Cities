@@ -97,6 +97,9 @@ export function getHouseInfo(f) {
 
   toReturn.pols.push(...fillOutPolygons(toReturn.pols));
 
+  const validPt = p => p && isFinite(p.x) && isFinite(p.y);
+  toReturn.pols = toReturn.pols.filter(p => p.points && p.points.length >= 3 && p.points.every(validPt));
+
   const roofPol = { points: f.points.map(p=>withZ(xy(p),floorHeight*floors+1)), type:'roof', normal:{x:0,y:0,z:-1} };
   const placed = [];
   if (roofAccess) {
@@ -112,6 +115,8 @@ export function getHouseInfo(f) {
 
   addRoofDetail(roofPol, toReturn, rng, placed, !roofAccess);
 
+  const isValidPt = p => p && isFinite(p.x) && isFinite(p.y);
+  toReturn.pols = toReturn.pols.filter(p => p.points && p.points.length >= 3 && p.points.every(isValidPt));
   f.points = pre.points; f.windows = pre.windows; f.entrances = pre.entrances;
   return toReturn;
 }

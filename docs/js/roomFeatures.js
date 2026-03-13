@@ -20,17 +20,23 @@ function getRectangularWindow(pts, center, frameWidth, frameDepth) {
   const n = pts.length;
   for (let j = 1; j <= n; j++) {
     const p1 = pts[j-1], p2 = pts[j%n];
+    const edgeLen = v3len(v3sub(p2, p1));
+    if (edgeLen < 1) continue;
     const t1 = v3norm(v3sub(center, p1));
     const t2 = v3norm(v3sub(center, p2));
     const winNormal = v3norm(rot90_3(v3sub(p2, p1)));
+    if (v3len(winNormal) < 0.1) continue;
     const quad = [p1, p2, v3add(p2, v3scale(t2, frameWidth)), v3add(p1, v3scale(t1, frameWidth))];
-    const frameDir = winNormal;
-    const off = v3scale(frameDir, frameDepth/2 - 20);
-    result.push({
-      points: quad.map(p => v3add(p, off)),
-      type: 'windowFrame',
-      width: frameDepth
-    });
+    const off = v3scale(winNormal, frameDepth/2 - 20);
+    const qPts = quad.map(p => v3add(p, off));
+    let ax=0,ay=0,az=0;
+    for(let k=1;k<qPts.length-1;k++){
+      const dx1=qPts[k].x-qPts[0].x,dy1=qPts[k].y-qPts[0].y,dz1=(qPts[k].z||0)-(qPts[0].z||0);
+      const dx2=qPts[k+1].x-qPts[0].x,dy2=qPts[k+1].y-qPts[0].y,dz2=(qPts[k+1].z||0)-(qPts[0].z||0);
+      ax+=dy1*dz2-dz1*dy2;ay+=dz1*dx2-dx1*dz2;az+=dx1*dy2-dy1*dx2;
+    }
+    if(Math.hypot(ax,ay,az)*0.5<0.01)continue;
+    result.push({ points: qPts, type: 'windowFrame', width: frameDepth });
   }
   return result;
 }
@@ -62,6 +68,9 @@ function getCrossWindow(pts, frameWidth, frameDepth) {
 
 // Returns window frame polygons for a given window polygon and type (0=rect, 1=cross, 2=vertLines, 3=rectHBig)
 export function getWindowFramePolygons(winPts, windowType) {
+  if (!winPts || winPts.length < 3) return [];
+  const xs = winPts.map(p=>p.x), ys = winPts.map(p=>p.y);
+  if (Math.max(...xs)-Math.min(...xs) < 1 && Math.max(...ys)-Math.min(...ys) < 1) return [];
   const frameWidth = 15, frameDepth = 30;
   const pts = [...winPts, winPts[0]];
   const center = {
@@ -73,7 +82,17 @@ export function getWindowFramePolygons(winPts, windowType) {
   if (windowType === 1) {
     frames.push(...getCrossWindow(pts, frameWidth, frameDepth));
   }
-  return frames;
+  const validPt = p => p && isFinite(p.x) && isFinite(p.y);
+  const area3D = (pts) => {
+    let ax=0,ay=0,az=0;
+    for(let i=1;i<pts.length-1;i++){
+      const dx1=pts[i].x-pts[0].x,dy1=pts[i].y-pts[0].y,dz1=(pts[i].z||0)-(pts[0].z||0);
+      const dx2=pts[i+1].x-pts[0].x,dy2=pts[i+1].y-pts[0].y,dz2=(pts[i+1].z||0)-(pts[0].z||0);
+      ax+=dy1*dz2-dz1*dy2;ay+=dz1*dx2-dx1*dz2;az+=dx1*dy2-dy1*dx2;
+    }
+    return Math.hypot(ax,ay,az)*0.5;
+  };
+  return frames.filter(f => f.points && f.points.length >= 3 && f.points.every(validPt) && area3D(f.points) >= 0.01);
 }
 
 // C++ placeBalcony: builds floor + 3 side walls from exterior window edge

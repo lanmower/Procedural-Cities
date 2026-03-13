@@ -51,15 +51,21 @@ function getPolygonDirection(pts){
   return{x:nx/nl,y:ny/nl,z:nz/nl};
 }
 
+const NO_SIDES_TYPES = new Set(['windowFrame','window','roadMiddle','concrete','tree','lampPost','awning','balcony','bush','furniture','crossing']);
+
 export function fillOutPolygon(p){
   const otherSides=[p];
   const width=p.width||0;
   if(width<=0)return otherSides;
+  if(!p.points||p.points.length<3)return otherSides;
+  if(p.points.some(pt=>!isFinite(pt.x)||!isFinite(pt.y)||!isFinite(pt.z||0)))return otherSides;
   const dir=getPolygonDirection(p.points);
+  if(Math.hypot(dir.x,dir.y,dir.z)<0.01)return otherSides;
   const off=v3scale(dir,width);
   const innerPts=p.points.map(pt=>v3add(pt,off));
   const innerType=(p.type==='exterior'||p.type==='exteriorSnd')?'interior':p.type;
   let polygonSides=true;
+  if(NO_SIDES_TYPES.has(p.type))polygonSides=false;
   if(p.type==='exterior'||p.type==='exteriorSnd'){
     if(!p.overridePolygonSides) polygonSides=false;
   }
@@ -68,9 +74,16 @@ export function fillOutPolygon(p){
   }
   if(polygonSides){
     const n=p.points.length;
+    const triArea=(a,b,c)=>{
+      const ax=b.x-a.x,ay=b.y-a.y,az=(b.z||0)-(a.z||0);
+      const bx=c.x-a.x,by=c.y-a.y,bz=(c.z||0)-(a.z||0);
+      return Math.hypot(ay*bz-az*by,az*bx-ax*bz,ax*by-ay*bx)*0.5;
+    };
     for(let i=1;i<=n;i++){
-      otherSides.push({points:[innerPts[i-1],p.points[i%n],p.points[i-1]],type:innerType});
-      otherSides.push({points:[innerPts[i-1],innerPts[i%n],p.points[i%n]],type:innerType});
+      const t1=[innerPts[i-1],p.points[i%n],p.points[i-1]];
+      const t2=[innerPts[i-1],innerPts[i%n],p.points[i%n]];
+      if(triArea(...t1)>0.01)otherSides.push({points:t1,type:innerType});
+      if(triArea(...t2)>0.01)otherSides.push({points:t2,type:innerType});
     }
   }
   otherSides.push({points:[...innerPts].reverse(),type:innerType});
@@ -131,8 +144,11 @@ export function placeRows(roofPol,rng,type,count){
   const pols=[];
   const pts=roofPol.points;
   if(!pts||pts.length<3)return pols;
+  if(pts.some(p=>!isFinite(p.x)||!isFinite(p.y)))return pols;
   const center={x:pts.reduce((s,p)=>s+p.x,0)/pts.length,y:pts.reduce((s,p)=>s+p.y,0)/pts.length,z:pts[0].z||0};
-  const tangent=v3norm(v3sub(pts[1],pts[0]));
+  const rawTan=v3sub(pts[1],pts[0]);
+  if(Math.hypot(rawTan.x,rawTan.y,rawTan.z||0)<1e-6)return pols;
+  const tangent=v3norm(rawTan);
   const normal=rot90_3(tangent);
   const iW=type==='fence'?30:150,iD=type==='fence'?10:80;
   const iH=type==='fence'?120:(type==='rooftop_solar'?30:80);
