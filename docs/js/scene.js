@@ -16,6 +16,10 @@ const MATS = {
   occlusionWindow: new THREE.MeshLambertMaterial({ color: 0x0a1520, side: THREE.DoubleSide }),
   concrete:    new THREE.MeshLambertMaterial({ color: 0xd8d4cc, side: THREE.FrontSide }),
   roadMiddle:  new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
+  windowFrame: new THREE.MeshLambertMaterial({ color: 0xf0ece0, side: THREE.DoubleSide }),
+  balcony:     new THREE.MeshLambertMaterial({ color: 0xc8c0b0, side: THREE.DoubleSide }),
+  tree:        new THREE.MeshLambertMaterial({ color: 0x3a6e2a, side: THREE.DoubleSide }),
+  lampPost:    new THREE.MeshLambertMaterial({ color: 0x606060, side: THREE.DoubleSide }),
 };
 
 export function createScene(container) {

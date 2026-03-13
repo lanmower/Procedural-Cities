@@ -3,6 +3,7 @@ import { scale, normalize, dist, rot90, rot270, mid, polyArea, polyIsClockwise,
          polyCenter, shrinkPoly, segIntersect, splitPolygonAlongMax, getSplitProposal,
          polySelfIntersects } from './utils.js';
 import { seededRandom } from './noise.js';
+import { getWindowFramePolygons, placeBalcony } from './roomFeatures.js';
 
 export const floorHeight = 400;
 const holeSizeX = 1200, holeSizeY = 1600;
@@ -659,9 +660,10 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
               const winPts = [pw1, pw2, pw3, pw4];
               result.push({ points: winPts, type: shellOnly ? 'occlusionWindow' : 'window', width: 8 });
               windowHoles.push({ points: winPts });
-              if (!windowFrames) {
-                // C++: p.getDirection() = face normal of window polygon, depth = 20 inward
-                // For clockwise exterior wall, inward normal = rot270 of tangent
+              if (windowFrames) {
+                const wtype = rp.windowType || 0;
+                result.push(...getWindowFramePolygons(winPts, wtype));
+              } else {
                 const wallInward = v3norm(rot270_3(v3sub(p2, p1)));
                 for (let k = 1; k <= 4; k++) {
                   const wp1 = winPts[k-1], wp2 = winPts[k%4];
@@ -767,7 +769,7 @@ export function getHouseInfo(f) {
     const upperRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, false, corrWidth, rng, toReturn.pols, specMaxApartmentSize);
     for (const p of upperRooms) {
       p.windowType = currentWindowType;
-      const roomInfo = buildApartmentRoom(p, i, rng, false);
+      const roomInfo = buildApartmentRoom(p, i, rng, rng() < 0.2);
       const off = {x:0,y:0,z:floorHeight*i};
       roomInfo.pols = roomInfo.pols.map(pol => ({
         ...pol,
@@ -815,19 +817,27 @@ export function getHouseInfo(f) {
   return toReturn;
 }
 
-// buildApartmentRoom: simplified interior (walls per room polygon)
+// buildApartmentRoom: walls + window frames + optional balcony
 function buildApartmentRoom(room, floorIdx, rng, potentialBalcony) {
   const pols = [];
   const meshes = [];
-  const pts = room.points;
-  const n = pts.length;
-  const z = floorIdx * floorHeight;
 
   const windowDensity = 0.003;
   const windowHeight  = 200;
   const windowWidth   = 120;
+  const useFrames = true;
 
-  const walls = interiorPlanToPolygons([room], floorHeight, windowDensity, windowHeight, windowWidth, floorIdx, false, false);
+  if (potentialBalcony && floorIdx > 0 && room.windows && room.windows.size > 0) {
+    for (const place of room.windows) {
+      const p1 = room.points[place-1], p2 = room.points[place % room.points.length];
+      if (p1 && p2 && v3dist(p1, p2) > 200) {
+        pols.push(...placeBalcony(room.points, place));
+        break;
+      }
+    }
+  }
+
+  const walls = interiorPlanToPolygons([room], floorHeight, windowDensity, windowHeight, windowWidth, floorIdx, false, useFrames);
   pols.push(...walls);
   return { pols, meshes };
 }
