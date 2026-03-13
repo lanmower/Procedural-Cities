@@ -10,6 +10,7 @@ function getNormal(p1, p2, right) {
 // getSidesOfPolygon: generate 4 side quads dropping from polygon at height z down by `height`
 function getSidesOfPolygon(pts, type, z, height) {
   const sides = [];
+  if (!pts || pts.length < 2) return sides;
   const n = pts.length;
   for (let i = 0; i < n; i++) {
     const a = pts[i], b = pts[(i+1)%n];
@@ -38,9 +39,10 @@ function getSidesOfPolygon(pts, type, z, height) {
 //   (then add current)
 // After loop: closing corner + closing outer corner
 export function getSideWalkPolygons(plot, width) {
+  if (!plot) return [];
   if (width === undefined) width = 500;
   const pols = [];
-  const pts = Array.isArray(plot) ? plot : plot.points;
+  const pts = Array.isArray(plot) ? plot : (plot.points || plot);
   if (!pts || pts.length < 3) return pols;
   const n = pts.length;
   const isClockwise = (Array.isArray(plot) ? plot.isClockwise : plot.isClockwise) ?? true;
