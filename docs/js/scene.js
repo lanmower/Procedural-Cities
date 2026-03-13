@@ -208,63 +208,64 @@ function projectTo2D(pts3d) {
 
 // Triangulate a 3D polygon that may lie in any plane (wall, floor, roof)
 // Supports optional holes (array of arrays of 3D points)
-function triangulate3DPolygon(pts3d, holes3d) {
-  if (!pts3d || pts3d.length < 3) return null;
-  if (pts3d.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) return null;
+function triangulate3DPolygon(pts3dIn, holes3d) {
+  if (!pts3dIn || pts3dIn.length < 3) return null;
+  if (pts3dIn.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) return null;
 
-  const outer2d = projectTo2D(pts3d);
-  if (!outer2d) return null;
+  // Build local 2D basis from first edge and polygon normal
+  const o = pts3dIn[0];
+  const ex = pts3dIn[1].x - o.x, ey = pts3dIn[1].y - o.y, ez = (pts3dIn[1].z||0) - (o.z||0);
+  const el = Math.hypot(ex, ey, ez);
+  if (el < 1e-10) return null;
+  const e1 = { x: ex/el, y: ey/el, z: ez/el };
+  const ax = pts3dIn[pts3dIn.length-1].x - o.x;
+  const ay = pts3dIn[pts3dIn.length-1].y - o.y;
+  const az = (pts3dIn[pts3dIn.length-1].z||0) - (o.z||0);
+  let nx = e1.y*az - e1.z*ay, ny = e1.z*ax - e1.x*az, nz = e1.x*ay - e1.y*ax;
+  const nl = Math.hypot(nx, ny, nz);
+  if (nl < 1e-10) return null;
+  nx /= nl; ny /= nl; nz /= nl;
+  const e2x = e1.y*nz - e1.z*ny, e2y = e1.z*nx - e1.x*nz, e2z = e1.x*ny - e1.y*nx;
 
-  const outerVec2 = outer2d.map(p => new THREE.Vector2(p.u, p.v));
+  const project = p => {
+    const dx = p.x - o.x, dy = p.y - o.y, dz = (p.z||0) - (o.z||0);
+    return new THREE.Vector2(dx*e1.x + dy*e1.y + dz*e1.z, dx*e2x + dy*e2y + dz*e2z);
+  };
+
+  // Project outer polygon; ensure CCW for THREE.js
+  let pts3d = pts3dIn;
+  let outerVec2 = pts3d.map(project);
+  if (THREE.ShapeUtils.area(outerVec2) < 0) {
+    pts3d = [...pts3dIn].reverse();
+    outerVec2 = pts3d.map(project);
+  }
+
   const holeVec2Arrays = [];
-
+  const holes3dOrdered = [];
   if (holes3d && holes3d.length > 0) {
     for (const hole of holes3d) {
       if (!hole || hole.length < 3) continue;
-      // Project hole points using same basis as outer polygon
-      const o = pts3d[0];
-      const ex = pts3d[1].x - o.x, ey = pts3d[1].y - o.y, ez = (pts3d[1].z||0) - (o.z||0);
-      const el = Math.hypot(ex, ey, ez);
-      if (el < 1e-10) continue;
-      const e1 = { x: ex/el, y: ey/el, z: ez/el };
-      const ax = pts3d[pts3d.length-1].x - o.x;
-      const ay = pts3d[pts3d.length-1].y - o.y;
-      const az = (pts3d[pts3d.length-1].z||0) - (o.z||0);
-      let nx = e1.y*az - e1.z*ay;
-      let ny = e1.z*ax - e1.x*az;
-      let nz = e1.x*ay - e1.y*ax;
-      const nl = Math.hypot(nx, ny, nz);
-      if (nl < 1e-10) continue;
-      nx /= nl; ny /= nl; nz /= nl;
-      const e2x = e1.y*nz - e1.z*ny;
-      const e2y = e1.z*nx - e1.x*nz;
-      const e2z = e1.x*ny - e1.y*nx;
-
-      const hv2 = hole.map(p => {
-        const dx = p.x - o.x, dy = p.y - o.y, dz = (p.z||0) - (o.z||0);
-        return new THREE.Vector2(
-          dx*e1.x + dy*e1.y + dz*e1.z,
-          dx*e2x  + dy*e2y  + dz*e2z
-        );
-      });
+      let hv2 = hole.map(project);
+      let hpts = hole;
+      // Holes must be CW
+      if (THREE.ShapeUtils.area(hv2) > 0) {
+        hpts = [...hole].reverse();
+        hv2 = hpts.map(project);
+      }
       holeVec2Arrays.push(hv2);
+      holes3dOrdered.push(hpts);
     }
   }
 
   let tris;
   try {
     tris = THREE.ShapeUtils.triangulateShape(outerVec2, holeVec2Arrays);
-  } catch(e) {
-    return null;
-  }
-
+  } catch(e) { return null; }
   if (!tris || !tris.length) return null;
 
-  // Combine outer and hole point arrays for index lookup
+  // Combine all points: outer first, then holes in same order as holeVec2Arrays
   const allPts3d = [...pts3d];
-  for (const hole of (holes3d || [])) {
-    if (hole && hole.length >= 3) allPts3d.push(...hole);
-  }
+  for (const h of holes3dOrdered) allPts3d.push(...h);
 
   return { pts: allPts3d, tris };
 }
@@ -280,17 +281,24 @@ function buildPolygonGeometry(polList, sc) {
     if (!pts || pts.length < 3) continue;
     if (pts.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) continue;
 
-    // Gather holes: holePoints (floors/roofs with stairwell holes) or windows (walls)
+    // Gather holes
     const holes3d = [];
-    if (pol.holePoints && pol.holePoints.length >= 3) {
-      holes3d.push(pol.holePoints);
-    }
+    if (pol.holePoints && pol.holePoints.length >= 3) holes3d.push(pol.holePoints);
     if (pol.windows && pol.windows.length > 0) {
       for (const win of pol.windows) {
         if (win.points && win.points.length >= 3) holes3d.push(win.points);
       }
     }
 
+    if (holes3d.length === 0 && pts.length === 4) {
+      // Fast path: simple quad, two triangles
+      for (const p of pts) { pos.push(p.x*sc, (p.z||0)*sc, p.y*sc); }
+      idx.push(vi, vi+1, vi+2, vi, vi+2, vi+3);
+      vi += 4;
+      continue;
+    }
+
+    // General: project to 2D, triangulate with optional holes
     const result = triangulate3DPolygon(pts, holes3d.length > 0 ? holes3d : null);
     if (!result) continue;
 

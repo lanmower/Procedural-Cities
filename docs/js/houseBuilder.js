@@ -740,7 +740,13 @@ export function getHouseInfo(f) {
     for (const p of upperRooms) {
       p.windowType = currentWindowType;
       const roomInfo = buildApartmentRoom(p, i, rng, false);
-      roomInfo.pols = roomInfo.pols.map(pol => ({ ...pol, points: pol.points.map(pt2 => v3add(pt2, {x:0,y:0,z:floorHeight*i})) }));
+      const off = {x:0,y:0,z:floorHeight*i};
+      roomInfo.pols = roomInfo.pols.map(pol => ({
+        ...pol,
+        points: pol.points.map(pt2 => v3add(pt2, off)),
+        ...(pol.windows ? { windows: pol.windows.map(w => ({ ...w, points: w.points.map(pt2 => v3add(pt2, off)) })) } : {}),
+        ...(pol.holePoints ? { holePoints: pol.holePoints.map(pt2 => v3add(pt2, off)) } : {}),
+      }));
       toReturn.pols.push(...roomInfo.pols);
       toReturn.meshes.push(...roomInfo.meshes);
     }
