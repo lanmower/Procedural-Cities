@@ -765,11 +765,6 @@ export function getHouseInfo(f) {
     if (horizontalFacade) addFacade(f, toReturn, floorHeight*i - 50, 70, 20);
 
     const upperRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, false, corrWidth, rng, toReturn.pols, specMaxApartmentSize);
-    if (!hasInterior && upperRooms.length === 0) {
-      // no interior plan — add simple exterior walls for this floor
-      const floorPts = f.points.map(p => withZ(xy(p), floorHeight * (i + 1)));
-      toReturn.pols.push(...getSidesOfPolygon({ points: floorPts }, 'exterior', floorHeight));
-    }
     for (const p of upperRooms) {
       p.windowType = currentWindowType;
       const roomInfo = buildApartmentRoom(p, i, rng, false);
