@@ -14,7 +14,7 @@ function getHeight(center, rng, noiseScale, minFloors, maxFloors, noise) {
 
 function subdivide(pts, maxArea, depth) {
   const area = polyArea(pts);
-  if (area <= maxArea || pts.length < 4 || depth >= 6) return [pts];
+  if (area <= maxArea || pts.length < 3 || depth > 2) return [pts];
   const result = splitPolygonAlongMax(pts);
   if (!result) return [pts];
   const [a, b] = result;

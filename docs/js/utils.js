@@ -242,7 +242,7 @@ export function getSplitProposal(pts, isClockwise, approxRatio = 0.5) {
   const p1 = middle;
 
   // Perpendicular direction to split
-  const tangent = isClockwise ? rot90(curr) : rot270(curr);
+  const tangent = isClockwise ? rot270(curr) : rot90(curr);
 
   // Find where the perpendicular hits the polygon
   let closestDist = Infinity;
