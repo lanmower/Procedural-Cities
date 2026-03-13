@@ -11,6 +11,7 @@ function getNormal(p1, p2, right) {
 function getSidesOfPolygon(pts, type, z, height) {
   const sides = [];
   if (!pts || pts.length < 2) return sides;
+  if (pts.some(p => !p || p.x == null)) return sides;
   const n = pts.length;
   for (let i = 0; i < n; i++) {
     const a = pts[i], b = pts[(i+1)%n];
@@ -56,6 +57,7 @@ export function getSideWalkPolygons(plot, width) {
   for (let i = 1; i <= n; i++) {
     const p1 = pts[i-1];
     const p2 = pts[i % n];
+    if (!p1 || !p2 || p1.x == null || p2.x == null) continue;
 
     const normal = getNormal(p1, p2, !isClockwise);
 
