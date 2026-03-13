@@ -364,12 +364,14 @@ function getEntrancePolygons(begin, end, height, thickness) {
 // --- addStairInfo ---
 export function addStairInfo(info, height, hole) {
   for (let i = 1; i <= hole.length; i++) {
+    const p1 = withZ(xy(hole[i-1]), 0);
+    const p2 = withZ(xy(hole[i%hole.length]), 0);
     const side = {
       points: [
-        hole[i-1],
-        v3add(hole[i-1], {x:0,y:0,z:height}),
-        v3add(hole[i%hole.length], {x:0,y:0,z:height}),
-        hole[i%hole.length],
+        v3add(p1, {x:0,y:0,z:height}),
+        v3add(p2, {x:0,y:0,z:height}),
+        p2,
+        p1,
       ],
       type: 'interior'
     };
@@ -381,20 +383,18 @@ export function addStairInfo(info, height, hole) {
 // C++: per edge, exteriorSnd band ~70 units tall at beginHeight, offset outward by width
 export function addFacade(f, toReturn, beginHeight, facadeHeight, width) {
   const pts = f.points;
-  const housePos = f.housePosition || polyCenter(pts.map(xy));
   for (let i = 1; i <= pts.length; i++) {
     const p1 = pts[i-1], p2 = pts[i % pts.length];
-    const t1 = v3norm(v3sub(p1, housePos));
-    const t2 = v3norm(v3sub(p2, housePos));
+    const tan = v3norm(v3sub(p2, p1));
+    const outward = rot90_3(tan); // outward normal (clockwise polygon)
     const fac = {
       points: [
-        v3add(v3add(p1, v3scale(t1, width)), {x:0,y:0,z:beginHeight}),
-        v3add(v3add(p1, v3scale(t1, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
-        v3add(v3add(p2, v3scale(t2, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
-        v3add(v3add(p2, v3scale(t2, width)), {x:0,y:0,z:beginHeight}),
+        v3add(v3add(p1, v3scale(outward, width)), {x:0,y:0,z:beginHeight}),
+        v3add(v3add(p1, v3scale(outward, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
+        v3add(v3add(p2, v3scale(outward, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
+        v3add(v3add(p2, v3scale(outward, width)), {x:0,y:0,z:beginHeight}),
       ],
       type: 'exteriorSnd',
-      width
     };
     toReturn.pols.push(fac);
   }
