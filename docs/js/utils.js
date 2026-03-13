@@ -199,8 +199,10 @@ export function polyClipEdges(pts, maxDot = -0.96) {
 }
 
 // Shrink polygon inward by distance d (FPolygon::symmetricShrink)
+// For CW polygons (our standard), inward normal = rot270(tangent) = (e.y, -e.x)
 export function shrinkPoly(pts, d) {
   const n = pts.length;
+  const isCW = polyIsClockwise(pts);
   const result = [];
   for (let i = 0; i < n; i++) {
     const prev = pts[(i + n - 1) % n];
@@ -208,7 +210,9 @@ export function shrinkPoly(pts, d) {
     const next = pts[(i + 1) % n];
     const e1 = normalize(sub(curr, prev));
     const e2 = normalize(sub(next, curr));
-    const n1 = perp(e1), n2 = perp(e2);
+    // inward normal: rot270 for CW, rot90 for CCW
+    const n1 = isCW ? rot270(e1) : perp(e1);
+    const n2 = isCW ? rot270(e2) : perp(e2);
     const nx = (n1.x + n2.x) * 0.5, ny = (n1.y + n2.y) * 0.5;
     const len = Math.hypot(nx, ny);
     if (len < 1e-10) { result.push({ x: curr.x, y: curr.y }); continue; }
