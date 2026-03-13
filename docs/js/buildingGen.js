@@ -24,11 +24,11 @@ function getHeight(center, rng, noiseScale, minFloors, maxFloors, noise) {
 // But all our coordinates are in raw UE cm, so we match by scaling maxArea accordingly.
 // C++ thresholds: minArea=1200, minMaxArea=3000, maxMaxArea=6000 (in getArea() units = raw * 0.0001)
 // Our coords are ~10x smaller than C++ (primaryStep=3000 vs ~5000-6000 in C++), so areas are ~100x smaller.
-// Scale thresholds down proportionally so building generation matches C++ behavior.
+// Scale thresholds down by 100x to match: 1200/100=12, 3000/100=30, 6000/100=60.
 const CPP_AREA_SCALE = 0.0001;
-const CPP_MAX_AREA = 600;
-const CPP_MIN_AREA = 300;
-const CPP_MIN_BUILD_AREA = 120;
+const CPP_MAX_AREA = 60;
+const CPP_MIN_AREA = 30;
+const CPP_MIN_BUILD_AREA = 12;
 
 function recursiveSplit(pts, maxArea, minArea, depth) {
   const area = polyArea(pts) * CPP_AREA_SCALE;
