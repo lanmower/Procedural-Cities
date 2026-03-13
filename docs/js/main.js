@@ -17,11 +17,11 @@ function getConfig() {
     length:    parseInt(document.getElementById('segments').value) || 400,
     mainBranchChance: parseFloat(document.getElementById('branch').value) || 0.3,
     showBuildings: document.getElementById('bldgs').checked,
-    noiseScale: 0.00003,
-    primaryStep: 5000,
-    secondaryStep: 3000,
-    changeIntensity: 30,
-    secondaryChangeIntensity: 45,
+    noiseScale: 0.00005,
+    primaryStep: 3000,
+    secondaryStep: 2000,
+    changeIntensity: 5,
+    secondaryChangeIntensity: 8,
     maxMainLen: 15,
     maxSecondaryLen: 8,
     mainAdvantage: 0.1,
@@ -29,7 +29,7 @@ function getConfig() {
     maxAttach: 2000,
     mainRoadDetrimentRange: 1000000,
     mainRoadDetrimentImpact: 0.01,
-    closeMiddle: 4000,
+    closeMiddle: 800,
   };
 }
 
