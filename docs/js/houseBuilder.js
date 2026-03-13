@@ -623,17 +623,29 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
       }
 
       // windows — C++: spaces = floor(min(windowDensity*len, len/(windowWidth+20)))
-      // then for j=1..spaces-1: place window at j*jumpLen ± windowWidth/2
+      // then for j=1..spaces-1: place window at j*jumpLen ± windowWidth/2, adjusted by fitWindowAround
       const windowHoles = [];
       if (rp.windows && rp.windows.has(i)) {
         const edgeLen = v3dist(p1, p2);
         const edgeTan = v3norm(v3sub(p2, p1));
         const spaces = Math.floor(Math.min(windowDensity * edgeLen, edgeLen / (windowWidth + 20)));
+        // door extents on this edge (used by fitWindowAround)
+        let doorStart = 100000, doorEnd = -1000000;
+        if (rp.entrances && rp.entrances.has(i) && edgeLen > 100) {
+          const entrPos = rp.specificEntrances && rp.specificEntrances[i]
+            ? rp.specificEntrances[i]
+            : { x: (p1.x+p2.x)/2, y: (p1.y+p2.y)/2, z: p1.z||0 };
+          doorStart = v3dist(p1, entrPos) - 137/2;
+          doorEnd   = doorStart + 137;
+        }
         if (spaces > 0) {
           const jumpLen = edgeLen / spaces;
           for (let j = 1; j < spaces; j++) {
             let cStart = j * jumpLen - windowWidth/2;
             let cEnd   = j * jumpLen + windowWidth/2;
+            // fitWindowAround: adjust window to avoid door zone
+            if (cStart < doorEnd) cEnd   = Math.min(cEnd,   doorStart - 30);
+            if (cEnd   > doorStart) cStart = Math.max(cStart, doorEnd   + 30);
             if (cEnd - cStart > 100) {
               // pw1 = p1 + tangent*cStart + z(50+windowHeight)  [top-left]
               // pw2 = pw1 - z(windowHeight)                     [bottom-left]
