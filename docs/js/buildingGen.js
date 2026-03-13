@@ -1,26 +1,51 @@
-import { polyArea, polyIsClockwise, polyCenter, splitPolygonAlongMax } from './utils.js';
+import { polyArea, polyIsClockwise, polyCenter, splitPolygonAlongMax, polyEnsureClockwise } from './utils.js';
 import { seededRandom, SimplexNoise } from './noise.js';
 
+// C++ PlotBuilder::getHeight uses noise + log distribution
+// noiseHeightInfluence = defined per-building-type in C++ specs; use 0.7 as default
 function getHeight(center, rng, noiseScale, minFloors, maxFloors, noise) {
   const n = noise.noise(center.x * noiseScale, center.y * noiseScale);
-  const noiseFactor = 0.5 + n * 0.5;
+  // C++: noise returns [-1,1], NoiseSingleton maps to [0,1]: adjustedNoise = (1-inf) + noise*inf
   const noiseHeightInfluence = 0.7;
-  const adjustedNoiseFactor = (1 - noiseHeightInfluence) + noiseFactor * noiseHeightInfluence;
+  const adjustedNoiseFactor = (1 - noiseHeightInfluence) + ((n * 0.5 + 0.5) * noiseHeightInfluence);
   const randVal = Math.min(1, Math.max(0.001, rng()));
-  const clamped = Math.min(1 - adjustedNoiseFactor + 0.02, 1);
-  const modifier = -Math.log(clamped + (1 - clamped) * randVal) / 4;
+  // C++: modifier = -log(FRandRange(min(1.02-adj,1), 1)) / 4
+  const low = Math.min(Math.max(1.02 - adjustedNoiseFactor, 0.001), 1);
+  const modifier = -Math.log(low + (1 - low) * randVal) / 4;
   return Math.max(minFloors, Math.floor(minFloors + (maxFloors - minFloors) * modifier * adjustedNoiseFactor));
 }
 
-function subdivide(pts, maxArea, depth) {
-  const area = polyArea(pts);
-  if (area <= maxArea || pts.length < 3 || depth > 2) return [pts];
-  const result = splitPolygonAlongMax(pts);
-  if (!result) return [pts];
-  const [a, b] = result;
-  if (!a || !b) return [pts];
-  if (polyArea(a) >= area * 0.9 || polyArea(b) >= area * 0.9) return [pts];
-  return [...subdivide(a, maxArea, depth + 1), ...subdivide(b, maxArea, depth + 1)];
+// C++ FHousePolygon::recursiveSplit — matches exactly:
+//   if (pts < 3 || area <= minArea) return []
+//   if (depth > 2) return [this]
+//   if (area > maxArea) split, recurse both halves
+//   else return [this]
+// C++ getArea() uses 0.0001 scale factor, so C++ maxArea=6000 → JS maxArea = 6000/0.0001 = 60_000_000
+// But all our coordinates are in raw UE cm, so we match by scaling maxArea accordingly.
+const CPP_AREA_SCALE = 0.0001; // C++ getArea() multiplies by this
+const CPP_MAX_AREA = 6000;     // C++ currMaxArea upper bound
+const CPP_MIN_AREA = 3000;     // C++ minMaxArea lower bound
+const CPP_MIN_BUILD_AREA = 1200; // C++ minArea — plots smaller than this skipped
+
+function recursiveSplit(pts, maxArea, minArea, depth) {
+  const area = polyArea(pts) * CPP_AREA_SCALE;
+  if (pts.length < 3 || area <= minArea) return [];
+  if (depth > 2) return [pts];
+  if (area > maxArea) {
+    const result = splitPolygonAlongMax(pts);
+    if (!result || !result[0] || !result[1]) return [pts];
+    const [remaining, newPoly] = result;
+    const newArea = polyArea(newPoly) * CPP_AREA_SCALE;
+    const remArea = polyArea(remaining) * CPP_AREA_SCALE;
+    // Safety: don't recurse if split didn't reduce meaningfully
+    if (newArea >= area * 0.95 || remArea >= area * 0.95) return [pts];
+    const tot = [];
+    const sub1 = recursiveSplit(newPoly, maxArea, minArea, depth + 1);
+    tot.push(...sub1);
+    tot.push(...recursiveSplit(remaining, maxArea, minArea, depth + 1));
+    return tot;
+  }
+  return [pts];
 }
 
 export function generateHousePolygons(plot, cfg = {}) {
@@ -30,30 +55,46 @@ export function generateHousePolygons(plot, cfg = {}) {
   if (isOpen) return [];
 
   const center = polyCenter(pts);
-  const rng = seededRandom(Math.abs(Math.floor(center.x * 7 + center.y * 13 + seed)) >>> 0);
+  // C++ seed: FRandomStream(cen.X * 1000 + cen.Y)
+  const rng = seededRandom(Math.abs(Math.floor(center.x * 1000 + center.y)) >>> 0);
   const noise = new SimplexNoise(seed);
 
+  // C++ PlotBuilder: 5% chance of empty plot
   if (rng() < 0.05) return [];
 
-  const area = polyArea(pts);
-  const targetPieces = rng() * (8 - 3) + 3;
-  const currMaxArea = area / targetPieces;
-  const minArea = currMaxArea * 0.3;
+  const plotArea = polyArea(pts) * CPP_AREA_SCALE;
 
-  const pieces = subdivide(pts, currMaxArea, 0);
+  // C++: area > currMaxArea * 8 → green plot (too big), area > currMaxArea * 30 → ignore
+  // C++: currMaxArea = FRandRange(minMaxArea=3000, maxMaxArea=6000)
+  const currMaxArea = CPP_MIN_AREA + rng() * (CPP_MAX_AREA - CPP_MIN_AREA);
+
+  if (plotArea > currMaxArea * 8) return []; // too big → green plot (skip)
+  if (plotArea > currMaxArea * 30) return []; // enormous → ignore
+
+  // Ensure CW winding (C++ does checkOrientation())
+  const cwPts = polyIsClockwise(pts) ? pts : [...pts].reverse();
+
+  // C++ refine: decreaseEdges then recursiveSplit
+  const pieces = recursiveSplit(cwPts, currMaxArea, CPP_MIN_BUILD_AREA, 0);
+
+  // If no pieces (all too small), treat whole plot as one building if large enough
+  const toProcess = pieces.length > 0 ? pieces : (plotArea >= CPP_MIN_BUILD_AREA ? [cwPts] : []);
+
   const result = [];
-  for (const pts of pieces) {
-    if (polyArea(pts) < minArea) continue;
-    const cen = polyCenter(pts);
+  for (const piece of toProcess) {
+    const pieceArea = polyArea(piece) * CPP_AREA_SCALE;
+    if (pieceArea < CPP_MIN_BUILD_AREA) continue;
+    const cen = polyCenter(piece);
     const height = getHeight(cen, rng, noiseScale, minFloors, maxFloors, noise);
-    const n = pts.length;
-    const edgeSet = new Set(Array.from({ length: n }, (_, i) => i));
+    const n = piece.length;
+    // C++ uses 1-based edge indices for entrances/windows (1..n)
+    const edgeSet = new Set(Array.from({ length: n }, (_, i) => i + 1));
     result.push({
-      points: pts,
+      points: piece,
       height,
       entrances: edgeSet,
       windows: new Set(edgeSet),
-      isClockwise: polyIsClockwise(pts),
+      isClockwise: true, // ensured CW above
       open: false,
     });
   }
