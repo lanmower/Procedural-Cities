@@ -7,13 +7,15 @@ const MATS = {
   exterior:    new THREE.MeshLambertMaterial({ color: 0xd0cfc8, side: THREE.DoubleSide }),
   exteriorSnd: new THREE.MeshLambertMaterial({ color: 0xb8b4a8, side: THREE.DoubleSide }),
   interior:    new THREE.MeshLambertMaterial({ color: 0xe8e4dc, side: THREE.DoubleSide }),
-  floor:       new THREE.MeshLambertMaterial({ color: 0x9a9590 }),
-  roof:        new THREE.MeshLambertMaterial({ color: 0x787470 }),
+  floor:       new THREE.MeshLambertMaterial({ color: 0x9a9590, side: THREE.DoubleSide }),
+  roof:        new THREE.MeshLambertMaterial({ color: 0x787470, side: THREE.DoubleSide }),
   road:        new THREE.MeshLambertMaterial({ color: 0x2a2a28, side: THREE.DoubleSide }),
   roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
   plot:        new THREE.MeshLambertMaterial({ color: 0xb8b0a0, side: THREE.DoubleSide }),
   window:      new THREE.MeshLambertMaterial({ color: 0x1a2a3a, side: THREE.DoubleSide }),
+  occlusionWindow: new THREE.MeshLambertMaterial({ color: 0x0a1520, side: THREE.DoubleSide }),
   concrete:    new THREE.MeshLambertMaterial({ color: 0xd8d4cc, side: THREE.DoubleSide }),
+  roadMiddle:  new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
 };
 
 export function createScene(container) {
@@ -124,12 +126,12 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
   for (const pol of materialPols) {
     const t = pol.type || 'exterior';
     if (!byType[t]) byType[t] = [];
-    byType[t].push(pol.points);
+    byType[t].push(pol);
   }
 
   for (const [type, polList] of Object.entries(byType)) {
     const mat = MATS[type] || MATS.exterior;
-    const geo = mergePolygons3D(polList, SCALE);
+    const geo = buildPolygonGeometry(polList, SCALE);
     if (geo) {
       const m = new THREE.Mesh(geo, mat);
       m.castShadow = m.receiveShadow = true;
@@ -169,29 +171,139 @@ function mergePolygons(polys, sc, yOff = 0) {
   return buildGeo(pos, idx);
 }
 
-// Render 3D material polygons (walls/floors/roofs with z coordinate)
-function mergePolygons3D(polys, sc) {
-  const pos = [], idx = [];
-  let vi = 0;
-  for (const pts of polys) {
-    if (!pts || pts.length < 3) continue;
-    if (pts.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) continue;
-    // For quads (walls): render as two triangles
-    if (pts.length === 4) {
-      for (const p of pts) pos.push(p.x * sc, (p.z || 0) * sc, p.y * sc);
-      idx.push(vi, vi+1, vi+2, vi, vi+2, vi+3);
-      vi += 4;
-    } else {
-      // triangulate flat polygons
-      const verts2d = pts.map(p => new THREE.Vector2(p.x * sc, p.y * sc));
-      const shape = new THREE.Shape(verts2d);
-      const tris = THREE.ShapeUtils.triangulateShape(shape.getPoints(), []);
-      const base = vi;
-      const z = (pts[0].z || 0) * sc;
-      for (const p of shape.getPoints()) { pos.push(p.x, z, p.y); vi++; }
-      for (const [a, b, c] of tris) idx.push(base+a, base+b, base+c);
+// Project a 3D polygon's points onto a 2D local coordinate system for triangulation
+// Uses the plane defined by the polygon's first 3 points
+function projectTo2D(pts3d) {
+  if (pts3d.length < 3) return null;
+  const o = pts3d[0];
+  // e1 along first edge
+  const ex = pts3d[1].x - o.x, ey = pts3d[1].y - o.y, ez = (pts3d[1].z||0) - (o.z||0);
+  const el = Math.hypot(ex, ey, ez);
+  if (el < 1e-10) return null;
+  const e1 = { x: ex/el, y: ey/el, z: ez/el };
+  // normal = cross(e1, pts[n-1]-pts[0])
+  const ax = pts3d[pts3d.length-1].x - o.x;
+  const ay = pts3d[pts3d.length-1].y - o.y;
+  const az = (pts3d[pts3d.length-1].z||0) - (o.z||0);
+  let nx = e1.y*az - e1.z*ay;
+  let ny = e1.z*ax - e1.x*az;
+  let nz = e1.x*ay - e1.y*ax;
+  const nl = Math.hypot(nx, ny, nz);
+  if (nl < 1e-10) return null;
+  nx /= nl; ny /= nl; nz /= nl;
+  // e2 = cross(e1, n)
+  const e2x = e1.y*nz - e1.z*ny;
+  const e2y = e1.z*nx - e1.x*nz;
+  const e2z = e1.x*ny - e1.y*nx;
+
+  const projected = pts3d.map(p => {
+    const dx = p.x - o.x, dy = p.y - o.y, dz = (p.z||0) - (o.z||0);
+    return {
+      u: dx*e1.x + dy*e1.y + dz*e1.z,
+      v: dx*e2x  + dy*e2y  + dz*e2z,
+    };
+  });
+  return projected;
+}
+
+// Triangulate a 3D polygon that may lie in any plane (wall, floor, roof)
+// Supports optional holes (array of arrays of 3D points)
+function triangulate3DPolygon(pts3d, holes3d) {
+  if (!pts3d || pts3d.length < 3) return null;
+  if (pts3d.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) return null;
+
+  const outer2d = projectTo2D(pts3d);
+  if (!outer2d) return null;
+
+  const outerVec2 = outer2d.map(p => new THREE.Vector2(p.u, p.v));
+  const holeVec2Arrays = [];
+
+  if (holes3d && holes3d.length > 0) {
+    for (const hole of holes3d) {
+      if (!hole || hole.length < 3) continue;
+      // Project hole points using same basis as outer polygon
+      const o = pts3d[0];
+      const ex = pts3d[1].x - o.x, ey = pts3d[1].y - o.y, ez = (pts3d[1].z||0) - (o.z||0);
+      const el = Math.hypot(ex, ey, ez);
+      if (el < 1e-10) continue;
+      const e1 = { x: ex/el, y: ey/el, z: ez/el };
+      const ax = pts3d[pts3d.length-1].x - o.x;
+      const ay = pts3d[pts3d.length-1].y - o.y;
+      const az = (pts3d[pts3d.length-1].z||0) - (o.z||0);
+      let nx = e1.y*az - e1.z*ay;
+      let ny = e1.z*ax - e1.x*az;
+      let nz = e1.x*ay - e1.y*ax;
+      const nl = Math.hypot(nx, ny, nz);
+      if (nl < 1e-10) continue;
+      nx /= nl; ny /= nl; nz /= nl;
+      const e2x = e1.y*nz - e1.z*ny;
+      const e2y = e1.z*nx - e1.x*nz;
+      const e2z = e1.x*ny - e1.y*nx;
+
+      const hv2 = hole.map(p => {
+        const dx = p.x - o.x, dy = p.y - o.y, dz = (p.z||0) - (o.z||0);
+        return new THREE.Vector2(
+          dx*e1.x + dy*e1.y + dz*e1.z,
+          dx*e2x  + dy*e2y  + dz*e2z
+        );
+      });
+      holeVec2Arrays.push(hv2);
     }
   }
+
+  let tris;
+  try {
+    tris = THREE.ShapeUtils.triangulateShape(outerVec2, holeVec2Arrays);
+  } catch(e) {
+    return null;
+  }
+
+  if (!tris || !tris.length) return null;
+
+  // Combine outer and hole point arrays for index lookup
+  const allPts3d = [...pts3d];
+  for (const hole of (holes3d || [])) {
+    if (hole && hole.length >= 3) allPts3d.push(...hole);
+  }
+
+  return { pts: allPts3d, tris };
+}
+
+// Build merged geometry from an array of material polygon objects
+// Each polygon has: { points: [...], type, holePoints? (for floors with holes), windows? (wall holes) }
+function buildPolygonGeometry(polList, sc) {
+  const pos = [], idx = [];
+  let vi = 0;
+
+  for (const pol of polList) {
+    const pts = pol.points;
+    if (!pts || pts.length < 3) continue;
+    if (pts.some(p => !p || !isFinite(p.x) || !isFinite(p.y))) continue;
+
+    // Gather holes: holePoints (floors/roofs with stairwell holes) or windows (walls)
+    const holes3d = [];
+    if (pol.holePoints && pol.holePoints.length >= 3) {
+      holes3d.push(pol.holePoints);
+    }
+    if (pol.windows && pol.windows.length > 0) {
+      for (const win of pol.windows) {
+        if (win.points && win.points.length >= 3) holes3d.push(win.points);
+      }
+    }
+
+    const result = triangulate3DPolygon(pts, holes3d.length > 0 ? holes3d : null);
+    if (!result) continue;
+
+    const base = vi;
+    for (const p of result.pts) {
+      pos.push(p.x * sc, (p.z||0) * sc, p.y * sc);
+      vi++;
+    }
+    for (const [a, b, c] of result.tris) {
+      idx.push(base+a, base+b, base+c);
+    }
+  }
+
   if (!pos.length) return null;
   return buildGeo(pos, idx);
 }
