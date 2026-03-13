@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { generateRoads } from './roadGen.js?v=fix-scale-2';
-import { extractPlots } from './plotGen.js?v=fix-scale-2';
-import { generateHousePolygons } from './buildingGen.js?v=fix-scale-2';
-import { getHouseInfo } from './houseBuilder.js?v=fix-scale-2';
-import { getSideWalkPolygons } from './sidewalkGen.js?v=fix-scale-2';
-import { createScene, buildCityMesh } from './scene.js?v=fix-scale-2';
+import { generateRoads } from './roadGen.js?v=fix-scale-3';
+import { extractPlots } from './plotGen.js?v=fix-scale-3';
+import { generateHousePolygons } from './buildingGen.js?v=fix-scale-3';
+import { getHouseInfo } from './houseBuilder.js?v=fix-scale-3';
+import { getSideWalkPolygons } from './sidewalkGen.js?v=fix-scale-3';
+import { createScene, buildCityMesh } from './scene.js?v=fix-scale-3';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
@@ -61,7 +61,7 @@ async function generate() {
       overlay.textContent = 'Generating buildings…';
       await tick();
       for (const plot of plots) {
-        const housePols = generateHousePolygons(plot, { minFloors: 1, maxFloors: 30, seed: cfg.seed, noiseScale: 0.0002 });
+        const housePols = generateHousePolygons(plot, { minFloors: 2, maxFloors: 30, seed: cfg.seed, noiseScale: 0.0002 });
         for (const house of housePols) {
           const info = getHouseInfo(house);
           materialPols.push(...info.pols);
