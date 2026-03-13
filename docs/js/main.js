@@ -105,4 +105,5 @@ window.regenerate = generate;
 document.getElementById('btnGen').addEventListener('click', generate);
 
 ctx = createScene(document.body);
+window._ctx = ctx;
 generate();
