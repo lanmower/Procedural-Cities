@@ -727,6 +727,7 @@ export function getHouseInfo(f) {
 
   // ground floor rooms
   const groundRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, true, corrWidth, rng, toReturn.pols, specMaxApartmentSize);
+  const hasInterior = groundRooms.length > 0;
   for (const p of groundRooms) {
     p.windowType = 0; // rectangular
     if (p.windows && p.windows.size > 0 && f.type === 'apartment') {
@@ -739,6 +740,14 @@ export function getHouseInfo(f) {
 
   // Shaft stair info
   addStairInfo(toReturn, floorHeight * floors, hole);
+
+  // If interior plan failed, generate simple exterior shell walls instead
+  if (!hasInterior) {
+    toReturn.pols.push(...getSidesOfPolygon(
+      { points: f.points.map(p => withZ(xy(p), floorHeight * floors)) },
+      'exterior', floorHeight * floors
+    ));
+  }
 
   // ground floor slab
   toReturn.pols.push({ points: f.points.map(p => withZ(xy(p), 0)), type: 'floor' });
@@ -756,6 +765,11 @@ export function getHouseInfo(f) {
     if (horizontalFacade) addFacade(f, toReturn, floorHeight*i - 50, 70, 20);
 
     const upperRooms = getInteriorPlanAndPlaceEntrancePolygons(f, hole, false, corrWidth, rng, toReturn.pols, specMaxApartmentSize);
+    if (!hasInterior && upperRooms.length === 0) {
+      // no interior plan — add simple exterior walls for this floor
+      const floorPts = f.points.map(p => withZ(xy(p), floorHeight * (i + 1)));
+      toReturn.pols.push(...getSidesOfPolygon({ points: floorPts }, 'exterior', floorHeight));
+    }
     for (const p of upperRooms) {
       p.windowType = currentWindowType;
       const roomInfo = buildApartmentRoom(p, i, rng, false);
