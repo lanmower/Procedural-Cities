@@ -106,6 +106,20 @@ export function placeSigns(room,rng){
   return[];
 }
 
+// MeshPolygonReference::getStairPolygon — stair shaft footprint
+export function getStairPolygon(origin, dirRot){
+  // dirRot: {x,y,z} unit vector defining forward direction
+  const forward=v3norm(dirRot);
+  const right=rot90_3(forward);
+  const sx=190, sy=213;
+  return [
+    v3add(origin,v3add(v3scale(forward,sx),v3scale(right,-sy))),
+    v3add(origin,v3add(v3scale(forward,sx),v3scale(right, sy))),
+    v3add(origin,v3add(v3scale(forward,-sx),v3scale(right, sy))),
+    v3add(origin,v3add(v3scale(forward,-sx),v3scale(right,-sy))),
+  ];
+}
+
 export function placeRows(roofPol,rng,type,count){
   const pols=[];
   const pts=roofPol.points;

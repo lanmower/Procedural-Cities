@@ -7,6 +7,8 @@ import { v3add, v3sub, v3scale, v3norm, v3dist, rot90_3, xy, withZ, polyPolyInte
 import { getShaftHolePolygon, makeInteresting, potentiallyShrink, getInteriorPlanAndPlaceEntrancePolygons, addStairInfo, addFacade } from './housePlan.js';
 import { getSidesOfPolygon, getFloorPolygonsWithHole, addRoofDetail } from './houseDetail.js';
 import { interiorPlanToPolygons } from './houseRooms.js';
+import { buildRoomFurniture } from './roomBuilders.js';
+import { placeAwnings } from './plotDecorations.js';
 
 export { fillOutPolygon, fillOutPolygons, getShaftHolePolygon, addStairInfo, addFacade,
          getFloorPolygonsWithHole, addRoofDetail, potentiallyShrink, getInteriorPlanAndPlaceEntrancePolygons };
@@ -121,5 +123,12 @@ function buildApartmentRoom(room, floorIdx, rng, potentialBalcony) {
     }
   }
   pols.push(...interiorPlanToPolygons([room], floorHeight, windowDensity, windowHeight, windowWidth, floorIdx, false, true));
+  if (floorIdx === 0 && room.type) {
+    const furniture = buildRoomFurniture(room.points, room.type, rng);
+    for (const f of furniture) pols.push(f);
+  }
+  if (floorIdx === 0 && room.windows && room.windows.size > 0 && rng() < 0.3) {
+    pols.push(...placeAwnings(room.points, room.windows));
+  }
   return { pols, meshes: [] };
 }
