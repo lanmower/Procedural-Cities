@@ -96,22 +96,23 @@ export function buildCityMesh(scene, roads, plots, materialPols) {
     group.add(m);
   }
 
-  // Road center lines (main roads)
+  // Road center lines (main + secondary roads)
   const lineQuads = [];
   for (const r of roads) {
-    if (r.type !== 'main') continue;
+    const isMain = r.type === 'main';
     const dx = r.p2.x - r.p1.x, dy = r.p2.y - r.p1.y;
     const len = Math.hypot(dx, dy), tx = dx/len, ty = dy/len;
-    const lw = 10;
-    let pos = 400;
-    while (pos < len - 200) {
+    const lw = isMain ? 10 : 5;
+    const dashLen = isMain ? 200 : 150, dashGap = isMain ? 400 : 300;
+    let pos = dashGap * 0.5;
+    while (pos < len - dashLen) {
       const s = { x: r.p1.x + tx*pos, y: r.p1.y + ty*pos };
-      const e = { x: r.p1.x + tx*(pos+200), y: r.p1.y + ty*(pos+200) };
+      const e = { x: r.p1.x + tx*(pos+dashLen), y: r.p1.y + ty*(pos+dashLen) };
       lineQuads.push([
         { x: s.x - ty*lw, y: s.y + tx*lw }, { x: s.x + ty*lw, y: s.y - tx*lw },
         { x: e.x + ty*lw, y: e.y - tx*lw }, { x: e.x - ty*lw, y: e.y + tx*lw }
       ]);
-      pos += 400;
+      pos += dashGap;
     }
   }
   const lineGeo = mergeQuads(lineQuads, SCALE, 0.4);
