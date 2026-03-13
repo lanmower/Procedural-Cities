@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { generateRoads } from './roadGen.js?v=fb539c8';
-import { extractPlots } from './plotGen.js?v=fb539c8';
-import { generateHousePolygons } from './buildingGen.js?v=fb539c8';
-import { getHouseInfo } from './houseBuilder.js?v=fb539c8';
-import { getSideWalkPolygons } from './sidewalkGen.js?v=fb539c8';
-import { createScene, buildCityMesh } from './scene.js?v=fb539c8';
+import { generateRoads } from './roadGen.js?v=e61741b';
+import { extractPlots } from './plotGen.js?v=e61741b';
+import { generateHousePolygons } from './buildingGen.js?v=e61741b';
+import { getHouseInfo } from './houseBuilder.js?v=e61741b';
+import { getSideWalkPolygons } from './sidewalkGen.js?v=e61741b';
+import { createScene, buildCityMesh } from './scene.js?v=e61741b';
 
 const overlay = document.getElementById('overlay');
 let ctx = null;
