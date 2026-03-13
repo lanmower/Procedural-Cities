@@ -683,10 +683,11 @@ export function getHouseInfo(f) {
 
   const pre = { points: f.points.map(p => ({...p})), windows: new Set(f.windows), entrances: new Set(f.entrances) };
 
+  const holeValid = (h) => h && !polyPolyIntersects2D(h.map(xy), ptsXY) && h.every(p => pointInPoly2D(xy(p), ptsXY));
   let hole = getShaftHolePolygon(f, rng, false);
-  if (!hole || polyPolyIntersects2D(hole.map(xy), ptsXY)) {
+  if (!holeValid(hole)) {
     hole = getShaftHolePolygon(f, rng, true);
-    if (!hole || polyPolyIntersects2D(hole.map(xy), ptsXY)) {
+    if (!holeValid(hole)) {
       const whole = { pol: { points: f.points.map(p => withZ(xy(p), simplePlotGroundOffset)) }, type: f.simplePlotType || 'undecided' };
       toReturn.remainingPlots.push(whole);
       return toReturn;
