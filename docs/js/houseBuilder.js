@@ -301,7 +301,8 @@ export function getInteriorPlanAndPlaceEntrancePolygons(f, hole, ground, corrWid
       const oldEntrances = Array.from(roomPols[0].entrances);
       roomPols[0].entrances = new Set(oldEntrances.map(e => e + 2));
       connections[0].a = conn2;
-      roomPols[0].points.unshift(firstAttach2, sndAttach2);
+      // C++: EmplaceAt(0, sndAttach) then EmplaceAt(1, firstAttach) → [sndAttach2, firstAttach2, ...]
+      roomPols[0].points.unshift(sndAttach2, firstAttach2);
       roomPols[0].entrances.add(1);
     } else {
       connections[i].a = conn2;
@@ -380,19 +381,20 @@ export function addStairInfo(info, height, hole) {
 }
 
 // --- addFacade ---
-// C++: per edge, exteriorSnd band ~70 units tall at beginHeight, offset outward by width
+// C++: tangent1 = normalize(pts[i-1] - housePosition), offset pts[i-1] outward by width
 export function addFacade(f, toReturn, beginHeight, facadeHeight, width) {
   const pts = f.points;
+  const hp = f.housePosition || polyCenter(pts.map(xy));
   for (let i = 1; i <= pts.length; i++) {
     const p1 = pts[i-1], p2 = pts[i % pts.length];
-    const tan = v3norm(v3sub(p2, p1));
-    const outward = rot90_3(tan); // outward normal (clockwise polygon)
+    const t1 = v3norm(v3sub(p1, hp));
+    const t2 = v3norm(v3sub(p2, hp));
     const fac = {
       points: [
-        v3add(v3add(p1, v3scale(outward, width)), {x:0,y:0,z:beginHeight}),
-        v3add(v3add(p1, v3scale(outward, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
-        v3add(v3add(p2, v3scale(outward, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
-        v3add(v3add(p2, v3scale(outward, width)), {x:0,y:0,z:beginHeight}),
+        v3add(v3add(p1, v3scale(t1, width)), {x:0,y:0,z:beginHeight}),
+        v3add(v3add(p1, v3scale(t1, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
+        v3add(v3add(p2, v3scale(t2, width)), {x:0,y:0,z:beginHeight+facadeHeight}),
+        v3add(v3add(p2, v3scale(t2, width)), {x:0,y:0,z:beginHeight}),
       ],
       type: 'exteriorSnd',
     };
@@ -426,16 +428,18 @@ function addDetailOnPolygon(depth, maxDepth, maxBoxes, pol, toReturn, rng, place
   const nextShapes = [];
 
   if (rng() < 0.6) {
-    // edge detail: raise pol upward, add sides
+    // edge detail: C++ reverses then raises, adds sides + fillOutPolygons (end caps)
     const size = 50 + rng() * 450;
-    const shape = { points: pol.points.map(p => v3add(p, {x:0,y:0,z:size})) };
+    const revPts = [...pol.points].reverse();
+    const shape = { points: revPts.map(p => v3add(p, {x:0,y:0,z:size})) };
     const sides = getSidesOfPolygon(shape, 'exteriorSnd', size);
-    sides.forEach(s => { s.overridePolygonSides = true; s.width = 20 + rng() * 130; });
-    toReturn.pols.push(...sides);
-    // fillOutPolygons equivalent: end caps
-    for (let i = 1; i < sides.length; i++) {
-      toReturn.pols.push({ points: [...sides[i].points], type: 'exteriorSnd' });
+    const width = 20 + rng() * 130;
+    sides.forEach(s => { s.overridePolygonSides = true; s.width = width; });
+    // fillOutPolygons: for each side quad, add the "other" face (cap polygon between adjacent sides)
+    for (const s of sides) {
+      toReturn.pols.push({ points: [s.points[0], s.points[3], s.points[2], s.points[1]], type: 'exteriorSnd' });
     }
+    toReturn.pols.push(...sides);
   }
 
   const offset = 100 + rng() * 900;
@@ -639,11 +643,12 @@ export function interiorPlanToPolygons(roomPols, floorHeightVal, windowDensity, 
               result.push({ points: winPts, type: shellOnly ? 'occlusionWindow' : 'window', width: 8 });
               windowHoles.push({ points: winPts });
               if (!windowFrames) {
-                // add side polygons around window (window reveal/depth)
-                const wallNorm = v3norm(rot90_3(v3sub(p2, p1)));
+                // C++: p.getDirection() = face normal of window polygon, depth = 20 inward
+                // For clockwise exterior wall, inward normal = rot270 of tangent
+                const wallInward = v3norm(rot270_3(v3sub(p2, p1)));
                 for (let k = 1; k <= 4; k++) {
                   const wp1 = winPts[k-1], wp2 = winPts[k%4];
-                  result.push({ points: [wp1, wp2, v3add(wp2, v3scale(wallNorm, 20)), v3add(wp1, v3scale(wallNorm, 20))], type: 'exterior', width: 0 });
+                  result.push({ points: [wp1, wp2, v3add(wp2, v3scale(wallInward, 20)), v3add(wp1, v3scale(wallInward, 20))], type: 'exterior', width: 0 });
                 }
               }
             }
