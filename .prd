@@ -2,97 +2,16 @@
   "project": "Procedural-Cities-1to1-Match",
   "created": "2026-03-13",
   "objective": "Fix all visual discrepancies between JS port and original C++ output for a true 1:1 match",
-  "items": [
-    {
-      "id": "1-visual-compare",
-      "subject": "Screenshot JS output and C++ reference images for visual comparison",
-      "status": "pending",
-      "description": "Use agent-browser to capture the live JS demo and the C++ reference images from GitHub. Document all visual differences.",
-      "blocking": ["3-analysis"],
-      "blockedBy": [],
-      "effort": "medium",
-      "category": "research"
-    },
-    {
-      "id": "2-read-cpp",
-      "subject": "Fetch and read all C++ source files from the original repo",
-      "status": "pending",
-      "description": "Download RoomBuilder.cpp, PlotBuilder.cpp, HouseBuilder.cpp, ApartmentSpecification.cpp, MeshPolygonReference.cpp, BaseLibrary.cpp, RoadGenerator.cpp and their headers. Read every function and constant.",
-      "blocking": ["3-analysis"],
-      "blockedBy": [],
-      "effort": "large",
-      "category": "research"
-    },
-    {
-      "id": "3-analysis",
-      "subject": "Deep analysis: compare C++ algorithms to JS implementations",
-      "status": "pending",
-      "description": "Side-by-side analysis of every major algorithm: wall thickness/fillOutPolygons, window geometry, floor setbacks, interior room walls, color palette, road widths, plot generation. List every discrepancy with file and line references.",
-      "blocking": ["4-fix-colors", "5-fix-walls", "6-fix-roads", "7-fix-buildings"],
-      "blockedBy": ["1-visual-compare", "2-read-cpp"],
-      "effort": "large",
-      "category": "research"
-    },
-    {
-      "id": "4-fix-colors",
-      "subject": "Fix color palette to exactly match C++ material colors",
-      "status": "pending",
-      "description": "Match exact hex colors for roads, buildings, rooftops, sidewalks, windows, plot fill from C++ screenshots. Update JS color constants.",
-      "blocking": ["8-version-bump"],
-      "blockedBy": ["3-analysis"],
-      "effort": "small",
-      "category": "bug"
-    },
-    {
-      "id": "5-fix-walls",
-      "subject": "Fix wall thickness and fillOutPolygons to match C++ output",
-      "status": "pending",
-      "description": "Verify fillOutPolygons inward offset math. C++ uses ~100-200cm wall thickness. Fix window recessing geometry. Fix floor setbacks for tall buildings.",
-      "blocking": ["8-version-bump"],
-      "blockedBy": ["3-analysis"],
-      "effort": "large",
-      "category": "bug"
-    },
-    {
-      "id": "6-fix-roads",
-      "subject": "Fix road generation, widths, and markings to match C++",
-      "status": "pending",
-      "description": "Verify road widths match C++ constants. Add center line road markings on main roads. Fix road color to near-black.",
-      "blocking": ["8-version-bump"],
-      "blockedBy": ["3-analysis"],
-      "effort": "medium",
-      "category": "bug"
-    },
-    {
-      "id": "7-fix-buildings",
-      "subject": "Fix building proportions, interior walls, and rooftop features",
-      "status": "pending",
-      "description": "Fix floorHeight constants. Verify interior room wall grid is generated. Add/fix rooftop features. Verify building shapes match C++ polygon generation.",
-      "blocking": ["8-version-bump"],
-      "blockedBy": ["3-analysis"],
-      "effort": "large",
-      "category": "bug"
-    },
-    {
-      "id": "8-version-bump",
-      "subject": "Bump version to full-port-5 and commit/push all fixes",
-      "status": "pending",
-      "description": "Update version string in main.js imports to ?v=full-port-5. Git add, commit with descriptive message, push to remote.",
-      "blocking": ["9-final-verify"],
-      "blockedBy": ["4-fix-colors", "5-fix-walls", "6-fix-roads", "7-fix-buildings"],
-      "effort": "small",
-      "category": "infra"
-    },
-    {
-      "id": "9-final-verify",
-      "subject": "Final visual verification with agent-browser screenshots",
-      "status": "pending",
-      "description": "Take new screenshots of deployed JS output and compare side-by-side with C++ reference. Confirm all major discrepancies resolved.",
-      "blocking": [],
-      "blockedBy": ["8-version-bump"],
-      "effort": "medium",
-      "category": "research"
-    }
-  ],
-  "completed": []
+  "items": [],
+  "completed": [
+    "1-visual-compare",
+    "2-read-cpp",
+    "3-analysis",
+    "4-fix-colors",
+    "5-fix-walls",
+    "6-fix-roads",
+    "7-fix-buildings",
+    "8-version-bump",
+    "9-final-verify"
+  ]
 }
