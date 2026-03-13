@@ -12,7 +12,7 @@ const MATS = {
   road:        new THREE.MeshLambertMaterial({ color: 0x2a2a28, side: THREE.DoubleSide }),
   roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
   plot:        new THREE.MeshLambertMaterial({ color: 0xb8b0a0, side: THREE.DoubleSide }),
-  window:      new THREE.MeshLambertMaterial({ color: 0x1a2a3a, side: THREE.DoubleSide }),
+  window:      new THREE.MeshLambertMaterial({ color: 0x4a8ab0, side: THREE.DoubleSide, transparent: true, opacity: 0.35 }),
   occlusionWindow: new THREE.MeshLambertMaterial({ color: 0x0a1520, side: THREE.DoubleSide }),
   concrete:    new THREE.MeshLambertMaterial({ color: 0xd8d4cc, side: THREE.DoubleSide }),
   roadMiddle:  new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
