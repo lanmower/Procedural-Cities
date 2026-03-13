@@ -77,6 +77,7 @@ async function generate() {
       currentMesh.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     }
     window._dbg = { roads: roads.length, plots: plots.length, materialPols: materialPols.length };
+    window._pols = materialPols;
     const openPlots = allPlots.filter(p=>p.open).length;
     console.log('roads:', roads.length, 'plots:', plots.length, '(allPlots:', allPlots.length, 'open:', openPlots, ') materialPols:', materialPols.length);
     currentMesh = buildCityMesh(ctx.scene, roads, plots, materialPols);
