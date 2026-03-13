@@ -1,10 +1,10 @@
 // HouseBuilder.js — port of HouseBuilder.cpp
 import { add, sub, scale, normalize, dist, rot90, mid, polyArea, polyIsClockwise,
-         polyCenter, shrinkPoly, segIntersect, splitPolygonAlongMax, dot, perp } from './utils.js';
+         polyCenter, shrinkPoly, segIntersect, splitPolygonAlongMax, dot } from './utils.js';
 import { seededRandom } from './noise.js';
 
 const floorHeight = 400;
-const holeSizeX = 600, holeSizeY = 800;
+const holeSizeX = 1200, holeSizeY = 1600;
 const corrWidth = 300;
 const maxApartmentSize = 200 * 200;
 
@@ -124,48 +124,57 @@ function potentiallyShrink(f, hole, rng) {
   return plots;
 }
 
-// Corridor slice between shaft hole and exterior wall
+// Corridor slice between shaft hole and exterior wall (matches C++ getInteriorPlanAndPlaceEntrancePolygons)
+// C++: for each hole edge, shoot ray at midPos±corrWidth/2 using altTangent (rot270 of hole edge tangent)
+// Returns 4 corridor rooms connecting shaft to exterior walls
 function getInteriorPlanAndPlaceEntrancePolygons(f, hole, floorIdx) {
   const rooms = [];
   if (!hole) return rooms;
   const hpts = hole;
   const fpts = f.points.map(xy);
+  const n = hpts.length;
   const z = floorIdx * floorHeight;
 
-  for (let hi = 0; hi < 4; hi++) {
-    const ha = hpts[hi], hb = hpts[(hi + 1) % hpts.length];
-    const edgeDir = normalize(sub(hb, ha));
-    const outward = rot90(edgeDir);
-    const hMid = mid(ha, hb);
+  for (let hi = 0; hi < n; hi++) {
+    const hprev = hpts[(hi + n - 1) % n];
+    const ha = hpts[hi], hb = hpts[(hi + 1) % n];
+    const tangent = normalize(sub(hb, ha));
+    const edgeLen = dist(ha, hb);
+    const midPos = edgeLen / 2;
+    // C++: altTangent = rotate270(tangent) — points outward from hole to exterior
+    const altTangent = { x: tangent.y, y: -tangent.x };
 
-    // shoot ray outward to find exterior wall
-    const rayEnd = add(hMid, scale(outward, 20000));
-    let bestDist = Infinity, hitPt = null;
+    const attach1 = add(ha, scale(tangent, midPos - corrWidth * 0.5));
+    const attach2 = add(ha, scale(tangent, midPos + corrWidth * 0.5));
+
+    // shoot ray from attach1 outward
+    const rayEnd1 = add(attach1, scale(altTangent, 100000));
+    let ext1 = null, bestD1 = Infinity;
     for (let fi = 0; fi < fpts.length; fi++) {
-      const fa = fpts[fi], fb = fpts[(fi + 1) % fpts.length];
-      const ix = segIntersect(hMid, rayEnd, fa, fb);
-      if (ix) {
-        const d = dist(hMid, ix);
-        if (d < bestDist) { bestDist = d; hitPt = ix; }
-      }
+      const ix = segIntersect(attach1, rayEnd1, fpts[fi], fpts[(fi + 1) % fpts.length]);
+      if (ix) { const d = dist(attach1, ix); if (d < bestD1) { bestD1 = d; ext1 = ix; } }
     }
-    if (!hitPt || bestDist < corrWidth) continue;
 
-    // corridor slice: shaft edge + 2 sides + exterior edge
-    const sideDir = perp(outward);
-    const halfW = dist(ha, hb) / 2;
-    const extA = add(hitPt, scale(sideDir, halfW));
-    const extB = sub(hitPt, scale(sideDir, halfW));
+    // shoot ray from attach2 outward
+    const rayEnd2 = add(attach2, scale(altTangent, 100000));
+    let ext2 = null, bestD2 = Infinity;
+    for (let fi = 0; fi < fpts.length; fi++) {
+      const ix = segIntersect(attach2, rayEnd2, fpts[fi], fpts[(fi + 1) % fpts.length]);
+      if (ix) { const d = dist(attach2, ix); if (d < bestD2) { bestD2 = d; ext2 = ix; } }
+    }
 
+    if (!ext1 || !ext2 || bestD1 < 10 || bestD2 < 10) continue;
+
+    // corridor: attach1, ext1, ext2, attach2 (shaft side: 0->3, exterior side: 1->2)
     const roomPts = [
-      withZ(ha, z), withZ(hb, z), withZ(extB, z), withZ(extA, z)
+      withZ(attach1, z), withZ(ext1, z), withZ(ext2, z), withZ(attach2, z)
     ];
     rooms.push({
       points: roomPts,
-      entrances: new Set(),
-      windows: new Set([2]),   // exterior edge index
-      exteriorWalls: new Set([2]),
-      toIgnore: new Set([0])   // shaft-side edge
+      entrances: new Set([1]),
+      windows: new Set([1]),
+      exteriorWalls: new Set([1]),
+      toIgnore: new Set([3])
     });
   }
   return rooms;

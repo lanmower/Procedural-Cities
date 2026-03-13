@@ -3,6 +3,7 @@ import { generateRoads } from './roadGen.js';
 import { extractPlots } from './plotGen.js';
 import { generateHousePolygons } from './buildingGen.js';
 import { getHouseInfo } from './houseBuilder.js';
+import { getSideWalkPolygons } from './sidewalkGen.js';
 import { createScene, buildCityMesh } from './scene.js';
 
 const overlay = document.getElementById('overlay');
@@ -49,6 +50,13 @@ async function generate() {
     const plots = allPlots.filter(p => !p.open);
 
     let materialPols = [];
+
+    overlay.textContent = 'Generating sidewalks…';
+    await tick();
+    for (const plot of plots) {
+      materialPols.push(...getSideWalkPolygons(plot, 500));
+    }
+
     if (cfg.showBuildings) {
       overlay.textContent = 'Generating buildings…';
       await tick();

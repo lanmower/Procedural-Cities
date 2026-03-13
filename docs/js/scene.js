@@ -13,6 +13,7 @@ const MATS = {
   roadLine:    new THREE.MeshLambertMaterial({ color: 0xf0d060, side: THREE.DoubleSide }),
   plot:        new THREE.MeshLambertMaterial({ color: 0xb8b0a0, side: THREE.DoubleSide }),
   window:      new THREE.MeshLambertMaterial({ color: 0x1a2a3a, side: THREE.DoubleSide }),
+  concrete:    new THREE.MeshLambertMaterial({ color: 0xd8d4cc, side: THREE.DoubleSide }),
 };
 
 export function createScene(container) {
