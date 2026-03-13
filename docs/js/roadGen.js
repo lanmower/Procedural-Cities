@@ -124,7 +124,17 @@ function enqueue(queue, prev, relDeg, step, type, width, maxChange,
 
   const p2 = add(p1, rot2({ x: step, y: 0 }, bestAngle));
   const tan = normalize(sub2(p2, p1));
-  const seg = { p1, p2, type, width, beginTangent: tan, endTangent: tan, roadInFront: false };
+  // C++ addRoadSide: beginTangent = FRotator(0, left?90:270, 0).RotateVector(prevSeg->p2 - prevSeg->p1)
+  // = perpendicular of parent road direction for side roads (relDeg != 0)
+  // C++ addRoadForward: beginTangent = normalize(prevSeg->p2 - prevSeg->p1) = parent road direction
+  let beginTangent;
+  if (relDeg !== 0) {
+    const prevTan = normalize(sub2(prev.seg.p2, prev.seg.p1));
+    beginTangent = relDeg > 0 ? { x: -prevTan.y, y: prevTan.x } : { x: prevTan.y, y: -prevTan.x };
+  } else {
+    beginTangent = normalize(sub2(prev.seg.p2, prev.seg.p1));
+  }
+  const seg = { p1, p2, type, width, beginTangent, endTangent: tan, roadInFront: false };
   computeVerts(seg, sw);
   const roadLen = (prev.seg.type === 'main' && type !== 'main') ? 1 : prev.roadLen + 1;
   const val = noiseAt(p2.x, p2.y);
