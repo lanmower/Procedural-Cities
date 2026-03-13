@@ -1,7 +1,7 @@
 // housePlan.js — shaft hole, makeInteresting, potentiallyShrink, interior plan, stair, facade
 // Ported from HouseBuilder.cpp
 import { v3add, v3sub, v3scale, v3norm, v3dist, rot270_3, rot90_3, xy, withZ, lineIntersect3, polyPolyIntersects2D, pointInPoly2D } from './houseGeom.js';
-import { shrinkPoly, polySelfIntersects, polyCenter, segIntersect, mid } from './utils.js';
+import { shrinkPoly, polySelfIntersects, polyCenter, segIntersect, mid, polyArea, splitPolygonAlongMax } from './utils.js';
 
 const holeSizeX = 1200, holeSizeY = 1600, corrWidth = 300;
 
@@ -108,6 +108,28 @@ function getEntrancePolygons(begin, end, height, thickness) {
   ],type:'exterior',width:thickness,overridePolygonSides:true}];
 }
 
+function splitRoomsKeepingEntrancesRecursively(original, maxApartmentSize, pEntrance, depth) {
+  const extra = [];
+  if (depth > 2) return extra;
+  const area = polyArea(original.points.map(p => ({x:p.x,y:p.y})));
+  if (area > maxApartmentSize) {
+    const result = splitPolygonAlongMax(original.points.map(p => ({x:p.x,y:p.y})));
+    if (!result || !result[1]) return extra;
+    const [remPts2D, newPts2D] = result;
+    const newRoom = {
+      points: newPts2D.map(p => ({x:p.x,y:p.y,z:0})),
+      entrances: new Set(), windows: new Set(),
+      exteriorWalls: new Set(), toIgnore: new Set(), canRefine: true
+    };
+    const newEntrance = newRoom.points.length > 1 ? (original.exteriorWalls && original.exteriorWalls.has(1) ? newRoom.points.length - 1 : 1) : 1;
+    newRoom.entrances.add(newEntrance);
+    original.points = remPts2D.map(p => ({x:p.x,y:p.y,z:0}));
+    extra.push(...splitRoomsKeepingEntrancesRecursively(newRoom, maxApartmentSize, newEntrance, depth + 1));
+    extra.push(newRoom);
+  }
+  return extra;
+}
+
 export function getInteriorPlanAndPlaceEntrancePolygons(f, hole, ground, corrWidthVal, rng, entrancePols, maxApartmentSize) {
   if (!hole) return [];
   const fpts=f.points, hpts=hole, n=hpts.length;
@@ -166,6 +188,10 @@ export function getInteriorPlanAndPlaceEntrancePolygons(f, hole, ground, corrWid
     if(fWindows.has(connections[i].a)) fp.windows.add(fp.points.length);
     fp.exteriorWalls.add(fp.points.length);
   }
+  const extra = [];
+  for (const p of roomPols) extra.push(...splitRoomsKeepingEntrancesRecursively(p, maxApartmentSize, -1, 0));
+  for (const p of extra) roomPols.push(p);
+
   corners.points.reverse();
   if(corners.points.length>0) corners.points.push({...corners.points[0]});
   for(let i=0;i<corners.points.length;i+=2) corners.toIgnore.add(i);
