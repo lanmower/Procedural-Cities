@@ -48,7 +48,7 @@ function addDetailOnPolygon(depth, maxDepth, maxBoxes, pol, toReturn, rng, place
     const sides = getSidesOfPolygon(shape, 'exteriorSnd', size);
     const width = 20 + rng()*130;
     sides.forEach(s => { s.width = width; });
-    for (const s of sides) toReturn.pols.push({points:[...s.points].reverse(), type:'exteriorSnd'});
+    toReturn.pols.push(...fillOutPolygons(sides));
     toReturn.pols.push(...sides);
   }
   const offset = 100 + rng()*900;

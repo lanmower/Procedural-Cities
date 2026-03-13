@@ -95,6 +95,8 @@ export function getHouseInfo(f) {
     }
   }
 
+  toReturn.pols.push(...fillOutPolygons(toReturn.pols));
+
   const roofPol = { points: f.points.map(p=>withZ(xy(p),floorHeight*floors+1)), type:'roof', normal:{x:0,y:0,z:-1} };
   const placed = [];
   if (roofAccess) {
