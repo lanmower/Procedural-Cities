@@ -1,0 +1,25 @@
+{
+  "roads": 198,
+  "plots": 118,
+  "buildings": 235,
+  "totalPolygons": 67207,
+  "typeCounts": {
+    "exterior": 11908,
+    "roadMiddle": 1101,
+    "interior": 40996,
+    "awning": 768,
+    "floor": 1150,
+    "exteriorSnd": 3440,
+    "roof": 397,
+    "concrete": 307,
+    "window": 1428,
+    "windowFrame": 5712
+  },
+  "nanCount": 0,
+  "zeroAreaCount": 0,
+  "invalidNormalCount": 12,
+  "zFightCount": 770,
+  "wallsAtZ0": 0,
+  "fillOutRatio": 2.671097211363044,
+  "issues": []
+}
